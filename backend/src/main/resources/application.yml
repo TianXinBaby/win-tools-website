@@ -1,6 +1,13 @@
 spring:
   application:
     name: backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:win_tools}?characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+  sql:
+    init:
+      mode: never
 
 server:
   port: 8080
