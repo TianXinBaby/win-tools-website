@@ -125,6 +125,38 @@ class DatabaseMapperTests {
     }
 
     @Test
+    @Sql("/sql/content-query-data.sql")
+    void toolPublicQueriesRequireEnabledStatusAndUseStableOrdering() {
+        var tools = toolMapper.selectList(new LambdaQueryWrapper<Tool>()
+                .eq(Tool::getStatus, 1).orderByAsc(Tool::getSortOrder).orderByAsc(Tool::getId));
+        assertThat(tools).extracting(Tool::getId).containsExactly(206L, 202L, 203L, 201L);
+        assertThat(tools).allSatisfy(tool -> assertThat(tool.getStatus()).isEqualTo(1));
+        for (String slug : new String[] {"disabled-tool", "unknown-status", "missing", "' OR 1=1 --"}) {
+            assertThat(toolMapper.selectOne(new LambdaQueryWrapper<Tool>()
+                    .eq(Tool::getSlug, slug).eq(Tool::getStatus, 1))).isNull();
+        }
+        assertThat(toolMapper.selectOne(new LambdaQueryWrapper<Tool>()
+                .eq(Tool::getSlug, "json-test").eq(Tool::getStatus, 1)).getId()).isEqualTo(202L);
+    }
+
+    @Test
+    @Sql("/sql/content-query-data.sql")
+    void articlePublicQueriesRequirePublishedStatusAndUseStableOrdering() {
+        var articles = articleMapper.selectList(new LambdaQueryWrapper<Article>()
+                .eq(Article::getStatus, 1).orderByDesc(Article::getCreatedAt).orderByDesc(Article::getId));
+        assertThat(articles).extracting(Article::getId).containsExactly(301L, 304L, 303L, 302L);
+        assertThat(articles).allSatisfy(article -> assertThat(article.getStatus()).isEqualTo(1));
+        for (long id : new long[] {305, 306, 999999}) {
+            assertThat(articleMapper.selectOne(new LambdaQueryWrapper<Article>()
+                    .eq(Article::getId, id).eq(Article::getStatus, 1))).isNull();
+        }
+        Article article = articleMapper.selectOne(new LambdaQueryWrapper<Article>()
+                .eq(Article::getId, 304L).eq(Article::getStatus, 1));
+        assertThat(article.getContent()).isEqualTo("Public body");
+        assertThat(article.getViewCount()).isEqualTo(4294967295L);
+    }
+
+    @Test
     void toolMapsAllFieldsAndUsesDatabaseDefaults() {
         Tool tool = newTool("json-test");
         tool.setIcon("test-icon");

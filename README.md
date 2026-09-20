@@ -2,9 +2,9 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第三阶段：Windows 资源后端查询 API**，保留前两阶段的后端基础设施和 Hello API。
-Windows 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
-前端尚未创建；Tool、Article 查询 API、Windows 写入 API、后台管理和登录当前阶段未实现。
+当前已实现**第四阶段：Tool 与 Article 查询后端 API**，保留前三阶段的后端基础设施、Hello 和 Windows API。
+Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
+前端尚未创建；工具实际功能、后台写接口、后台管理和登录当前阶段未实现。
 
 ## 当前技术栈
 
@@ -46,24 +46,24 @@ win-tools-website/
         │   ├── java/com/xiaoc/backend/
         │   │   ├── BackendApplication.java
         │   │   ├── common/ApiResponse.java
-        │   │   ├── controller/（HelloController、WindowsController）
+        │   │   ├── controller/（HelloController、WindowsController、ToolController、ArticleController）
         │   │   ├── entity/（WindowsVersion、Tool、Article、AdminUser）
         │   │   ├── mapper/（对应的四个 BaseMapper 接口）
-        │   │   ├── service/WindowsVersionService.java
-        │   │   ├── service/impl/WindowsVersionServiceImpl.java
-        │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO）
+        │   │   ├── service/（WindowsVersionService、ToolService、ArticleService）
+        │   │   ├── service/impl/（对应的三个 Service 实现）
+        │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO、ToolVO、ArticleListVO、ArticleDetailVO）
         │   │   └── exception/（GlobalExceptionHandler、ResourceNotFoundException）
         │   └── resources/application.yml
         └── test/
             ├── java/com/xiaoc/backend/
             │   ├── BackendApplicationTests.java
-            │   ├── controller/（HelloControllerTests、WindowsControllerTests）
-            │   ├── service/WindowsVersionServiceTests.java
-            │   ├── mapper/（DatabaseMapperTests、WindowsDevSeedTests）
+            │   ├── controller/（HelloControllerTests、WindowsControllerTests、ToolControllerTests、ArticleControllerTests）
+            │   ├── service/（WindowsVersionServiceTests、ToolServiceTests、ArticleServiceTests）
+            │   ├── mapper/（DatabaseMapperTests、WindowsDevSeedTests、ContentDevSeedTests）
             │   └── exception/GlobalExceptionHandlerTests.java
             └── resources/
                 ├── application-test.yml
-                ├── sql/（schema-h2.sql、windows-query-data.sql）
+                ├── sql/（schema-h2.sql、windows-query-data.sql、content-query-data.sql）
                 └── mockito-extensions/org.mockito.plugins.MockMaker
 ```
 
@@ -139,11 +139,15 @@ Linux 环境也保留了官方 Wrapper 脚本，可在 `backend` 中使用 `sh m
    `seed-dev.sql` 仅供开发演示，与正式建表脚本分开，应用不会自动执行。
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
-   脚本按名称、版本、edition、architecture 做存在判断；在单个本地会话中顺序重复执行不会重复插入，
-   不覆盖已有数据，也不会重新启用已禁用的数据。不用于并发执行，未为 seed 新增业务唯一约束。
+   同时包含 5 个工具目录项（JSON、UUID、时间戳、SHA256、Base64）和 3 篇原创简短示例文章。
+   工具仅提供元数据，`path` 是未来前端路由，当前阶段未实现对应页面或工具功能；示例文章不是完整技术教程。
+   Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
+   在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
+   不创建默认管理员、密码或密钥。不用于并发执行，未为 seed 新增业务唯一约束。
 5. 退出 MySQL 客户端，在 PowerShell 中设置下节环境变量，运行后端，再访问 `/api/hello`。
    Hello 本身不查询数据库，HTTP 200 **不能单独证明**应用已经连通 MySQL。
-   还应访问 `/api/windows`，从结果选择有效 ID 验证详情，并用不存在的 ID 验证 404。
+   还应访问 `/api/windows`、`/api/tools`、`/api/articles`，从结果选择有效 ID / slug 验证详情，
+   并用不存在的 ID / slug 验证 404；如果已有 disabled 工具或 draft 文章，也应确认其详情为 404。
    当前自动化验证使用 H2，真实 MySQL 的 JDBC 连接及 API 行为仍需在凭据可用后单独验证。
    验证完成后使用 `Ctrl+C` 停止后端。
 
@@ -215,6 +219,10 @@ Entity 仅生成 Getter/Setter，避免自动生成包含密码字段的 `toStri
 | GET | `/api/hello` | Hello 连通性接口，不查询数据库 |
 | GET | `/api/windows` | 数据库中的公开 Windows 列表，无数据时返回空数组 |
 | GET | `/api/windows/{id}` | 公开 Windows 详情，不存在或未启用时返回 404 |
+| GET | `/api/tools` | enabled 工具目录列表，无公开数据时返回空数组 |
+| GET | `/api/tools/{slug}` | enabled 工具详情，不存在或 disabled 时返回 404 |
+| GET | `/api/articles` | published 文章列表，不返回正文 content，无公开数据时返回空数组 |
+| GET | `/api/articles/{id}` | published 文章详情，包含 content，不存在或 draft 时返回 404 |
 
 Windows 数据来自 `windows_version`，只公开 `status=1` 的资源；其他状态均不可通过列表或详情读取。
 列表排序为 `sort_order ASC`、`release_date DESC`、`id ASC`。
@@ -225,6 +233,27 @@ Windows 数据来自 `windows_version`，只公开 `status=1` 的资源；其他
 零和负数 ID 返回 404；非整数或超出 Java Long 范围的 ID 返回 400，均使用统一 JSON。
 POST / PUT / PATCH / DELETE 返回 405；本阶段没有分页、搜索、复杂筛选或后台 API。
 
+### Tool 与 Article 查询规则
+
+Tool 仅公开 `status=1`（enabled），列表按 `sort_order ASC, id ASC` 稳定排序。
+列表与详情共用 `ToolVO`，字段仅有 `id`、`name`、`slug`、`icon`、`description`、`category`、`path`，
+不返回 `status`、`sortOrder`、`createdAt`、`updatedAt`。
+详情通过 slug 等值查询，沿用数据库唯一约束和排序规则，不做模糊匹配。
+不存在、disabled 或其他非 1 状态均返回 HTTP 404，消息为 `Tool resource not found`。
+能匹配详情路由的空白或无法匹配资源的 slug 同样返回 404；未提供 slug 的 `/api/tools` 是列表接口。
+
+Article 仅公开 `status=1`（published），列表按 `created_at DESC, id DESC` 稳定排序。
+列表字段为 `id`、`title`、`slug`、`summary`、`coverImage`、`category`、`viewCount`、`createdAt`，
+SQL 查询和 JSON 响应均不包含正文 `content`。
+详情在列表字段基础上增加 `content`、`updatedAt`，所有公开响应均不返回 `status`。
+GET 仅查询，不增加 `view_count`，也不更新文章时间戳。
+draft、其他非 1 状态、不存在、零和负数 ID 均返回 HTTP 404，消息为 `Article resource not found`；
+非整数或超出 Java Long 范围的 ID 返回 HTTP 400，消息为 `Bad Request`。
+
+两个资源继续使用统一 `ApiResponse<T>`：成功为 `code=200`、`message=success`；
+错误的 HTTP 状态与 `code` 一致，`data=null`，不返回 SQL、堆栈或未公开记录。
+POST / PUT / PATCH / DELETE 均返回 405。当前不提供分类筛选、搜索、分页或浏览量写入逻辑。
+
 PowerShell 查询示例（后端已启动，数据库已初始化）：
 
 ```powershell
@@ -233,6 +262,18 @@ $windows | ConvertTo-Json -Depth 5
 if ($windows.data.Count -gt 0) {
     $windowsId = $windows.data[0].id
     Invoke-RestMethod "http://localhost:8080/api/windows/$windowsId"
+}
+$tools = Invoke-RestMethod http://localhost:8080/api/tools
+$tools | ConvertTo-Json -Depth 5
+if ($tools.data.Count -gt 0) {
+    $toolSlug = [uri]::EscapeDataString($tools.data[0].slug)
+    Invoke-RestMethod "http://localhost:8080/api/tools/$toolSlug"
+}
+$articles = Invoke-RestMethod http://localhost:8080/api/articles
+$articles | ConvertTo-Json -Depth 5
+if ($articles.data.Count -gt 0) {
+    $articleId = $articles.data[0].id
+    Invoke-RestMethod "http://localhost:8080/api/articles/$articleId"
 }
 ```
 
@@ -294,10 +335,12 @@ CMD 中使用 `mvnw.cmd test` 和 `mvnw.cmd verify`。
 .\backend\mvnw.cmd -f backend\pom.xml verify
 ```
 
-测试保留前两阶段全部 15 项回归测试，并增加 Windows Service、Controller / MockMvc、
-Mapper 查询和开发 seed 测试。覆盖 enabled 过滤、三层排序（含同日期和 NULL 日期）、详情映射、
-空列表、disabled / 不存在 / 非法 ID、公开字段精确集合、404 / 400 信息保护及写入方法的 405。
-开发 seed 测试直接执行 `sql/seed-dev.sql`，检查重复执行及保留已有数据的行为。
+测试保留前三阶段全部回归测试，覆盖 Windows、Tool、Article 的 Service、Controller / MockMvc、
+Mapper 查询和开发 seed。包含 enabled / published 过滤、同排序值的稳定次序、详情映射、
+空列表、disabled / draft / 其他状态、非法 ID / slug、公开字段精确集合、404 / 400 和写入方法的 405。
+Article 测试验证列表不返回正文、详情返回正文、无符号 INT 浏览量的 Long 映射和重复 GET 不修改数据库。
+保留 Tool slug 唯一约束、Article 长正文 CLOB / LONGTEXT 映射和浏览量范围测试。
+开发 seed 测试直接执行 `sql/seed-dev.sql`，检查重复执行、保留用户维护数据及不生成管理员账户的行为。
 原有 Hello、404、405、500 JSON 和内部信息保护测试继续执行。
 
 数据库测试使用 test scope H2 的 MySQL compatibility mode，每个应用上下文使用独立内存库，
@@ -324,4 +367,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 4：Tool 与 Article 查询 API；本次未提前实现。
+下一阶段仅建议：阶段 5：Vue 3 前端基础工程；本次未提前实现。

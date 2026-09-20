@@ -1,6 +1,6 @@
 -- Local development examples only. Run sql/init.sql first and select win_tools.
 -- Run sequentially in a single local session; not a concurrent seed/migration job.
--- Existing matching rows (including disabled rows) are preserved, never updated.
+-- Existing matching rows (including disabled tools and draft articles) are preserved, never updated.
 -- Versions below are examples, not a claim about the current Microsoft download.
 -- Unknown release dates/checksums stay NULL; the official page may offer another version.
 -- Read the target directly in INSERT ... SELECT, not inside a target-table subquery.
@@ -27,3 +27,48 @@ FROM windows_version
 WHERE name = 'Windows 10' AND version = '22H2'
   AND edition = 'Windows 10' AND architecture = 'x64'
 HAVING COUNT(*) = 0;
+
+-- Catalog metadata only. Tool implementations and frontend routes do not exist yet.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'JSON 格式化', 'json', 'JSON 格式化工具目录示例；当前阶段未实现工具功能。',
+       'developer', '/tools/json', 1, 10
+FROM tool WHERE slug = 'json' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'UUID 生成', 'uuid', 'UUID 生成工具目录示例；当前阶段未实现工具功能。',
+       'developer', '/tools/uuid', 1, 20
+FROM tool WHERE slug = 'uuid' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '时间戳转换', 'timestamp', '时间戳转换工具目录示例；当前阶段未实现工具功能。',
+       'developer', '/tools/timestamp', 1, 30
+FROM tool WHERE slug = 'timestamp' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'SHA256', 'sha256', 'SHA256 工具目录示例；当前阶段未实现工具功能。',
+       'developer', '/tools/sha256', 1, 40
+FROM tool WHERE slug = 'sha256' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'Base64', 'base64', 'Base64 工具目录示例；当前阶段未实现工具功能。',
+       'developer', '/tools/base64', 1, 50
+FROM tool WHERE slug = 'base64' HAVING COUNT(*) = 0;
+
+-- Short original examples for local API development, not complete technical tutorials.
+INSERT INTO article (title, slug, summary, content, category, status)
+SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',
+       '本示例用于演示文章查询。请从网站 Windows 资源详情中的 Microsoft 官方入口查看下载说明，具体版本和系统要求以官方页面为准。',
+       'windows', 1
+FROM article WHERE slug = 'windows-11-download-guide' HAVING COUNT(*) = 0;
+
+INSERT INTO article (title, slug, summary, content, category, status)
+SELECT 'Windows 10 官方下载说明', 'windows-10-download-guide', '本地开发示例：核对官方说明。',
+       '本示例用于演示文章详情。下载前请到 Microsoft 官方页面核对可用版本、下载方式和支持说明；本项目不提供 ISO 文件托管。',
+       'windows', 1
+FROM article WHERE slug = 'windows-10-download-guide' HAVING COUNT(*) = 0;
+
+INSERT INTO article (title, slug, summary, content, category, status)
+SELECT '在线工具使用说明', 'online-tools-guide', '本地开发示例：认识工具目录。',
+       '当前阶段只提供工具名称、描述和路径等目录元数据，工具功能与前端页面尚未实现。后续能够在浏览器本地完成的处理将优先在本地执行。',
+       'tools', 1
+FROM article WHERE slug = 'online-tools-guide' HAVING COUNT(*) = 0;
