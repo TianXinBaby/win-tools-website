@@ -14,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,6 +97,31 @@ class DatabaseMapperTests {
         assertThat(updated.getId()).isEqualTo(version.getId());
         assertThat(windowsVersionMapper.deleteById(version.getId())).isEqualTo(1);
         assertThat(windowsVersionMapper.selectById(version.getId())).isNull();
+    }
+
+    @Test
+    @Sql("/sql/windows-query-data.sql")
+    void windowsPublicQueryFiltersAndSortsInTheDatabase() {
+        var versions = windowsVersionMapper.selectList(new LambdaQueryWrapper<WindowsVersion>()
+                .eq(WindowsVersion::getStatus, 1)
+                .orderByAsc(WindowsVersion::getSortOrder)
+                .orderByDesc(WindowsVersion::getReleaseDate)
+                .orderByAsc(WindowsVersion::getId));
+        assertThat(versions).extracting(WindowsVersion::getId)
+                .containsExactly(108L, 103L, 104L, 102L, 107L, 101L);
+        assertThat(versions).allSatisfy(version -> assertThat(version.getStatus()).isEqualTo(1));
+    }
+
+    @Test
+    @Sql("/sql/windows-query-data.sql")
+    void windowsDetailQueryRequiresBothRequestedIdAndEnabledStatus() {
+        assertThat(windowsVersionMapper.selectById(105L)).isNotNull();
+        for (long id : new long[] {105, 106, 999999}) {
+            assertThat(windowsVersionMapper.selectOne(new LambdaQueryWrapper<WindowsVersion>()
+                    .eq(WindowsVersion::getId, id).eq(WindowsVersion::getStatus, 1))).isNull();
+        }
+        assertThat(windowsVersionMapper.selectOne(new LambdaQueryWrapper<WindowsVersion>()
+                .eq(WindowsVersion::getId, 103L).eq(WindowsVersion::getStatus, 1)).getId()).isEqualTo(103L);
     }
 
     @Test
