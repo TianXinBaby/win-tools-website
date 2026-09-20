@@ -2,9 +2,9 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第二阶段：MySQL + MyBatis-Plus + 数据库基础设施**，保留第一阶段后端和 Hello API。
-包含四张基础表、Entity、Mapper 和独立数据库层测试。Vue 尚未创建；Windows、Tool、Article
-业务 API、Service 和后台登录当前阶段未实现。
+当前已实现**第三阶段：Windows 资源后端查询 API**，保留前两阶段的后端基础设施和 Hello API。
+Windows 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
+前端尚未创建；Tool、Article 查询 API、Windows 写入 API、后台管理和登录当前阶段未实现。
 
 ## 当前技术栈
 
@@ -34,7 +34,8 @@ win-tools-website/
 ├── .gitignore
 ├── README.md
 ├── sql/
-│   └── init.sql
+│   ├── init.sql
+│   └── seed-dev.sql
 └── backend/
     ├── .mvn/wrapper/maven-wrapper.properties
     ├── mvnw
@@ -45,20 +46,24 @@ win-tools-website/
         │   ├── java/com/xiaoc/backend/
         │   │   ├── BackendApplication.java
         │   │   ├── common/ApiResponse.java
-        │   │   ├── controller/HelloController.java
+        │   │   ├── controller/（HelloController、WindowsController）
         │   │   ├── entity/（WindowsVersion、Tool、Article、AdminUser）
         │   │   ├── mapper/（对应的四个 BaseMapper 接口）
-        │   │   └── exception/GlobalExceptionHandler.java
+        │   │   ├── service/WindowsVersionService.java
+        │   │   ├── service/impl/WindowsVersionServiceImpl.java
+        │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO）
+        │   │   └── exception/（GlobalExceptionHandler、ResourceNotFoundException）
         │   └── resources/application.yml
         └── test/
             ├── java/com/xiaoc/backend/
             │   ├── BackendApplicationTests.java
-            │   ├── controller/HelloControllerTests.java
-            │   ├── mapper/DatabaseMapperTests.java
+            │   ├── controller/（HelloControllerTests、WindowsControllerTests）
+            │   ├── service/WindowsVersionServiceTests.java
+            │   ├── mapper/（DatabaseMapperTests、WindowsDevSeedTests）
             │   └── exception/GlobalExceptionHandlerTests.java
             └── resources/
                 ├── application-test.yml
-                ├── sql/schema-h2.sql
+                ├── sql/（schema-h2.sql、windows-query-data.sql）
                 └── mockito-extensions/org.mockito.plugins.MockMaker
 ```
 
@@ -124,9 +129,23 @@ Linux 环境也保留了官方 Wrapper 脚本，可在 `backend` 中使用 `sh m
    脚本会创建 `win_tools` 和四张表；执行账户需要相应的建库、建表权限。
    `IF NOT EXISTS` 允许重复执行且保留已有数据，但不会修复或迁移已存在的表结构。
    初始化脚本不插入任何 Windows 下载数据或默认管理员账户。
-4. 退出 MySQL 客户端，在 PowerShell 中设置下节环境变量，运行后端，再访问 `/api/hello`。
+4. 可选：在同一个 MySQL 客户端会话中导入本地开发示例：
+
+   ```sql
+   USE win_tools;
+   SOURCE D:/study/win-tools-website/sql/seed-dev.sql;
+   ```
+
+   `seed-dev.sql` 仅供开发演示，与正式建表脚本分开，应用不会自动执行。
+   示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
+   示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
+   脚本按名称、版本、edition、architecture 做存在判断；在单个本地会话中顺序重复执行不会重复插入，
+   不覆盖已有数据，也不会重新启用已禁用的数据。不用于并发执行，未为 seed 新增业务唯一约束。
+5. 退出 MySQL 客户端，在 PowerShell 中设置下节环境变量，运行后端，再访问 `/api/hello`。
    Hello 本身不查询数据库，HTTP 200 **不能单独证明**应用已经连通 MySQL。
-   当前自动化验证使用 H2，真实 MySQL 的 JDBC 连接及 Mapper 行为仍需在凭据可用后单独验证。
+   还应访问 `/api/windows`，从结果选择有效 ID 验证详情，并用不存在的 ID 验证 404。
+   当前自动化验证使用 H2，真实 MySQL 的 JDBC 连接及 API 行为仍需在凭据可用后单独验证。
+   验证完成后使用 `Ctrl+C` 停止后端。
 
 ### 连接配置
 
@@ -178,7 +197,8 @@ cd D:\study\win-tools-website\backend
 
 Windows、工具和管理员的 `status` 约定为 1=enabled、0=disabled，默认 1；
 文章约定为 1=published、0=draft，默认 0。当前数据库未增加状态枚举 CHECK，业务校验在后续阶段实现。
-`sort_order` 默认 0；列表可按其升序并以 id 稳定排序。
+`sort_order` 默认 0；Windows 公开列表按 `sort_order ASC, release_date DESC, id ASC` 排序，
+相同 sort_order 下未填写发布日期的数据排在有日期的数据之后。
 默认排序规则不区分大小写和重音，因此 `slug` / `username` 唯一约束也遵循此规则。
 
 四个 Mapper 使用 `@Mapper` 注册并继承 `BaseMapper`。Entity 使用 `@TableName`、
@@ -189,6 +209,44 @@ Windows、工具和管理员的 `status` 约定为 1=enabled、0=disabled，默�
 Entity 仅生成 Getter/Setter，避免自动生成包含密码字段的 `toString()`。
 
 ## API
+
+| 方法 | 路径 | 行为 |
+| --- | --- | --- |
+| GET | `/api/hello` | Hello 连通性接口，不查询数据库 |
+| GET | `/api/windows` | 数据库中的公开 Windows 列表，无数据时返回空数组 |
+| GET | `/api/windows/{id}` | 公开 Windows 详情，不存在或未启用时返回 404 |
+
+Windows 数据来自 `windows_version`，只公开 `status=1` 的资源；其他状态均不可通过列表或详情读取。
+列表排序为 `sort_order ASC`、`release_date DESC`、`id ASC`。
+下载链接只允许 Microsoft 官方来源，由数据维护者在录入数据库时核验；本阶段没有写入接口或链接校验接口。
+公开接口使用 VO，不返回 `status`、`sortOrder`、`createdAt`、`updatedAt`。
+列表字段为 `id`、`name`、`version`、`edition`、`architecture`、`releaseDate`、`description`、`imageUrl`；
+详情在此基础上增加 `officialDownloadUrl` 和 `sha256`。
+零和负数 ID 返回 404；非整数或超出 Java Long 范围的 ID 返回 400，均使用统一 JSON。
+POST / PUT / PATCH / DELETE 返回 405；本阶段没有分页、搜索、复杂筛选或后台 API。
+
+PowerShell 查询示例（后端已启动，数据库已初始化）：
+
+```powershell
+$windows = Invoke-RestMethod http://localhost:8080/api/windows
+$windows | ConvertTo-Json -Depth 5
+if ($windows.data.Count -gt 0) {
+    $windowsId = $windows.data[0].id
+    Invoke-RestMethod "http://localhost:8080/api/windows/$windowsId"
+}
+```
+
+无公开数据时列表返回：
+
+```json
+{"code":200,"message":"success","data":[]}
+```
+
+详情不存在或已禁用时，HTTP 状态和 JSON code 均为 404：
+
+```json
+{"code":404,"message":"Windows resource not found","data":null}
+```
 
 访问 [http://localhost:8080/api/hello](http://localhost:8080/api/hello)，或运行：
 
@@ -236,9 +294,11 @@ CMD 中使用 `mvnw.cmd test` 和 `mvnw.cmd verify`。
 .\backend\mvnw.cmd -f backend\pom.xml verify
 ```
 
-测试保留第一阶段 5 项，并增加 10 项数据库测试，共 15 项：应用上下文、四个 Mapper Bean、
-Windows CRUD、全部 Entity 字段映射、唯一约束、长文章、浏览量默认值及范围、数据库时间戳，
-以及完整数据库应用上下文中的 Hello API。原有 Hello、404、405、500 JSON 和内部信息保护测试继续执行。
+测试保留前两阶段全部 15 项回归测试，并增加 Windows Service、Controller / MockMvc、
+Mapper 查询和开发 seed 测试。覆盖 enabled 过滤、三层排序（含同日期和 NULL 日期）、详情映射、
+空列表、disabled / 不存在 / 非法 ID、公开字段精确集合、404 / 400 信息保护及写入方法的 405。
+开发 seed 测试直接执行 `sql/seed-dev.sql`，检查重复执行及保留已有数据的行为。
+原有 Hello、404、405、500 JSON 和内部信息保护测试继续执行。
 
 数据库测试使用 test scope H2 的 MySQL compatibility mode，每个应用上下文使用独立内存库，
 测试事务结束后回滚，既不访问本地 MySQL，也不写本地数据库文件。测试专用建表脚本为
@@ -264,4 +324,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：Windows 资源后端 API；本次未提前实现。
+下一阶段仅建议：阶段 4：Tool 与 Article 查询 API；本次未提前实现。
