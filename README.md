@@ -2,10 +2,11 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第五阶段：Vue 3 前端基础工程**，保留前四阶段的后端基础设施、Hello、Windows、Tool 和 Article API。
+当前已实现**第六阶段：基础在线工具功能**，保留前四阶段的后端基础设施、Hello、Windows、Tool 和 Article API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
-工具实际功能、后台写接口、后台管理和登录当前阶段未实现。
+已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64 五个浏览器本地工具。
+后台写接口、后台管理和登录当前阶段未实现。
 
 ## 当前技术栈
 
@@ -51,8 +52,8 @@ win-tools-website/
 │   │   ├── composables/useResource.js
 │   │   ├── layouts/MainLayout.vue
 │   │   ├── router/index.js
-│   │   ├── utils/（request.js、urls.js）
-│   │   ├── views/（首页、列表、详情、404）
+│   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态）
+│   │   ├── views/（首页、列表、详情、404、tools/ 五个工具页面）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -135,11 +136,12 @@ Linux 环境也保留了官方 Wrapper 脚本，可在 `backend` 中使用 `sh m
 
 ```powershell
 cd frontend
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
-首次创建工程时使用 `npm install` 生成并提交锁文件；克隆仓库及后续验证使用 `npm ci`。
+首次创建工程时使用 `npm.cmd install` 生成并提交锁文件；克隆仓库及后续验证使用 `npm.cmd ci`。
+PowerShell 统一使用 `npm.cmd`，避免 `npm.ps1` 被 ExecutionPolicy 阻止；不要为此修改执行策略。
 无需创建 `.env`。访问 [前端首页](http://localhost:5173)，后端地址为 [localhost:8080](http://localhost:8080/api/hello)。
 按 `Ctrl+C` 停止开发服务。端口被占用时 Vite 会报错，不会静默换端口。
 
@@ -154,8 +156,13 @@ npm run dev
 | `/` | Hero、热门 Windows、常用工具、最新文章；独立请求三个已有列表，各取前三项 |
 | `/windows` | 展示版本、版本名称、架构、发布日期、简介与详情入口 |
 | `/windows/:id` | Windows 详情、SHA-256、官方链接、可选图片 |
-| `/tools` | 展示工具图标文本、名称、描述、分类 |
-| `/tools/:slug` | 工具介绍，明确提示下一阶段开放；不跟随未来 `path` |
+| `/tools` | 从后端读取工具元数据，展示开放状态并优先使用有效的 `path` 进入工具 |
+| `/tools/json` | JSON 格式化、压缩、复制和清空 |
+| `/tools/uuid` | UUID v4 单个 / 批量生成，最多 100 个 |
+| `/tools/timestamp` | Unix 秒 / 毫秒与浏览器本地日期时间双向转换 |
+| `/tools/sha256` | UTF-8 文本 SHA-256 Hash |
+| `/tools/base64` | UTF-8 文本 Base64 编解码，支持中文和 emoji |
+| `/tools/:slug` | 未实现工具的通用介绍，继续提示尚未开放 |
 | `/articles` | 文章标题、摘要、封面、分类、浏览量、发布时间；不展示正文 |
 | `/articles/:id` | 文章纯文本正文、摘要、封面及发布时间 / 更新时间等信息 |
 | 其他路径 | 404 页面，提供返回首页入口 |
@@ -174,25 +181,48 @@ Windows 下载仅使用后端提供的 HTTPS `microsoft.com` 或其子域链接�
 前端不生成其他下载地址，不存储 ISO。图片拒绝 `javascript:`、`data:` 等非 HTTP(S) 协议。
 未配置真实前端环境文件，也不将数据库凭据传入前端。
 
+### 第六阶段：基础在线工具
+
+五个工具的计算完全在浏览器本地运行，用户输入不会发送到服务器、API、数据库或日志系统。
+不使用 localStorage、sessionStorage、IndexedDB 或 Cookie 保存输入；不新增 Analytics，不记录输入到 console。
+刷新或离开页面后丢弃工具状态。工具计算不依赖后端；首页和工具目录仍从已有 API 读取元数据。
+
+- JSON 使用原生 JSON.parse / JSON.stringify，支持所有合法 JSON 值；错误时提供友好提示。
+- UUID 优先使用 crypto.randomUUID，缺失时使用 crypto.getRandomValues 设置 v4 version / variant；不使用 Math.random。
+  支持快捷数量 1、5、10、20、50 及自定义 1–100。UUID 用于唯一标识，不作为密码、密钥或安全 Token。
+- 时间戳必须明确选择秒或毫秒，接受整数和负数，检查 Date 有效范围；日期输入和结果均使用浏览器本地时区。
+  同时显示当前时间、Unix 秒和毫秒，每秒刷新；秒结果向下取整。无效日期及夏令时跳过的时间报错，重复时间按 Date 规则选择较早时刻。
+- SHA-256 使用 TextEncoder 和 crypto.subtle.digest，输出 64 位小写十六进制；是 Hash，不是加密，不能解密。
+- Base64 使用 TextEncoder / TextDecoder 处理 UTF-8；接受标准 Base64 的必要 = 填充和 ASCII 空白，拒绝非法编码及非 UTF-8 数据。
+  支持中文、emoji、空文本及多行文本。Base64 是编码，不是加密，不能保护敏感信息。
+- 复制使用 navigator.clipboard.writeText，明确反馈成功、失败或不支持；可手动选中结果复制。
+  Web Crypto、文本编码或解码 API 缺失时提示不支持，不引入替代算法或依赖。
+
+Web Crypto 和剪贴板通常需要安全上下文：本地开发使用 localhost，未来部署使用 HTTPS。
+五个具体路由位于通用 /tools/:slug 之前；轻量 registry 仅维护开放的 slug，不复制后端名称、描述等元数据。
+工具卡片优先采用解析为对应工具的站内 path，异常 path 按路由名称回退；未开放工具继续展示原有详情。
+
 ### 前端测试与构建
 
 在 `frontend` 目录执行：
 
 ```powershell
-npm ci
-npm run lint
-npm run format:check
-npm run test
-npm run build
+npm.cmd ci
+npm.cmd run lint
+npm.cmd run format:check
+npm.cmd run test
+npm.cmd run build
 ```
 
-`npm run test` 一次性执行 Vitest，`npm run test:unit` 用于监听开发；`npm run format` 格式化前端文件。
+`npm.cmd run test` 一次性执行 Vitest，`npm.cmd run test:unit` 用于监听开发；`npm.cmd run format` 格式化前端文件。
 测试使用 Vue Test Utils + jsdom、模拟 API / Axios adapter，覆盖请求解包和错误处理、六个 API 路径、
 全部路由、页面状态与重试、详情参数切换、旧请求竞态、文章 XSS、官方链接校验和首页部分失败。
+新增工具测试覆盖 JSON 类型、UUID v4 / 数量限制、时间戳边界与固定时钟、真实 SHA-256 标准向量、Unicode Base64、
+复制失败、工具关键交互、异步清空竞态、具体路由和通用详情回归。保留第五阶段全部测试，通用详情用例改用未开放 slug。
 测试不需要 MySQL，不连接真实 API，也未引入 E2E 框架或 Mock Service Worker。
 
-`npm run build` 产物位于 `frontend/dist/`，不会写入后端 `resources/static`，不提交 Git。
-可用 `npm run preview` 本地查看生产构建；preview 仅供本地检查，不是生产服务器，真实部署需按上文配置反向代理。
+`npm.cmd run build` 产物位于 `frontend/dist/`，不会写入后端 `resources/static`，不提交 Git。
+可用 `npm.cmd run preview` 本地查看生产构建；preview 仅供本地检查，不是生产服务器，真实部署需按上文配置反向代理。
 
 ### 前后端联调边界
 
@@ -241,7 +271,8 @@ npm run build
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
    同时包含 5 个工具目录项（JSON、UUID、时间戳、SHA256、Base64）和 3 篇原创简短示例文章。
-   工具仅提供元数据，`path` 是未来功能路由，当前前端只通过 `/tools/:slug` 展示工具介绍，不跟随 `path`；工具功能未实现，示例文章不是完整技术教程。
+   工具表继续只提供元数据；五个 `path` 已与第六阶段真实工具路由一致，因此不修改 SQL。
+   seed 中的描述和示例文章保留早期目录阶段文案，不代表当前开放状态；前端 registry 标注实际开放状态。示例文章不是完整技术教程。
    Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
    在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
    不创建默认管理员、密码或密钥。不用于并发执行，未为 seed 新增业务唯一约束。
@@ -468,4 +499,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 6：在线工具功能开发，优先 JSON 格式化、UUID、时间戳、SHA-256、Base64；本次未提前实现。
+下一阶段仅建议：阶段 7：二维码生成与图片处理工具。

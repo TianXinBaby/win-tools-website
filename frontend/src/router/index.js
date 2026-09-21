@@ -26,6 +26,36 @@ export const routes = [
     meta: { title: '在线工具' },
   },
   {
+    path: '/tools/json',
+    name: 'tool-json',
+    component: () => import('../views/tools/JsonToolView.vue'),
+    meta: { title: 'JSON 格式化' },
+  },
+  {
+    path: '/tools/uuid',
+    name: 'tool-uuid',
+    component: () => import('../views/tools/UuidToolView.vue'),
+    meta: { title: 'UUID v4 生成' },
+  },
+  {
+    path: '/tools/timestamp',
+    name: 'tool-timestamp',
+    component: () => import('../views/tools/TimestampToolView.vue'),
+    meta: { title: '时间戳转换' },
+  },
+  {
+    path: '/tools/sha256',
+    name: 'tool-sha256',
+    component: () => import('../views/tools/Sha256ToolView.vue'),
+    meta: { title: 'SHA-256' },
+  },
+  {
+    path: '/tools/base64',
+    name: 'tool-base64',
+    component: () => import('../views/tools/Base64ToolView.vue'),
+    meta: { title: 'Base64 编解码' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),
