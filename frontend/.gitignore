@@ -1,0 +1,4 @@
+# Root .gitignore already covers dependencies, build output, secrets and IDE files.
+coverage/
+.eslintcache
+*.timestamp-*.mjs

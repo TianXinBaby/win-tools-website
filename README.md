@@ -2,9 +2,10 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第四阶段：Tool 与 Article 查询后端 API**，保留前三阶段的后端基础设施、Hello 和 Windows API。
+当前已实现**第五阶段：Vue 3 前端基础工程**，保留前四阶段的后端基础设施、Hello、Windows、Tool 和 Article API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
-前端尚未创建；工具实际功能、后台写接口、后台管理和登录当前阶段未实现。
+前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
+工具实际功能、后台写接口、后台管理和登录当前阶段未实现。
 
 ## 当前技术栈
 
@@ -22,7 +23,15 @@ MyBatis-Plus 使用[官方 Spring Boot 3 Starter](https://baomidou.com/en/gettin
 不额外引入 MyBatis Starter、XML Mapper 或无实际用途的插件。
 Connector/J 9.7.0 是支持 MySQL Server 8.0 及以上的正式版本，见
 [官方版本说明](https://dev.mysql.com/doc/relnotes/connector-j/en/news-9-7-0.html)。
-后续前端计划使用 Vue 3 / Vite / JavaScript。
+前端使用 JavaScript / HTML5 / CSS3，基于 [Vue 官方 create-vue](https://vuejs.org/guide/quick-start) 创建：
+
+- Vue 3.5.43 / Vite 8.3.0
+- Vue Router 5.3.1 / Axios 1.20.0 / Element Plus 2.14.6
+- Vitest 4.1.11 / Vue Test Utils 2.5.1 / jsdom 30.1.0（仅开发测试）
+- ESLint 10.11.0 / Prettier 3.9.6
+
+精确依赖由 `frontend/package-lock.json` 锁定。Element Plus 的 Button、Alert、Empty、Skeleton、Tag
+在 `main.js` 中直接注册并引入对应样式，未添加自动导入插件或复杂组件配置。
 
 ## 当前目录结构
 
@@ -33,6 +42,25 @@ win-tools-website/
 ├── .gitattributes
 ├── .gitignore
 ├── README.md
+├── frontend/
+│   ├── public/favicon.svg
+│   ├── src/
+│   │   ├── api/（windows.js、tools.js、articles.js）
+│   │   ├── assets/main.css
+│   │   ├── components/（请求状态、Windows / Tool / Article 卡片）
+│   │   ├── composables/useResource.js
+│   │   ├── layouts/MainLayout.vue
+│   │   ├── router/index.js
+│   │   ├── utils/（request.js、urls.js）
+│   │   ├── views/（首页、列表、详情、404）
+│   │   ├── __tests__/
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── vite.config.js
+│   └── vitest.config.js
 ├── sql/
 │   ├── init.sql
 │   └── seed-dev.sql
@@ -67,8 +95,7 @@ win-tools-website/
                 └── mockito-extensions/org.mockito.plugins.MockMaker
 ```
 
-`frontend/` 尚未创建。
-`target/`、本地 `.cache/`、IDE 私有文件以及 `.env` 已加入忽略规则。
+`target/`、`node_modules/`、`dist/`、本地 `.cache/`、IDE 私有文件以及 `.env` 已加入忽略规则。
 
 ## 环境要求
 
@@ -76,7 +103,8 @@ win-tools-website/
 - Windows PowerShell 或 CMD。
 - 首次使用 Wrapper 需要联网下载 Maven 和依赖，无需安装全局 Maven。
 - 默认端口 `8080` 可用；开发数据库使用本地 MySQL 8，测试不需要本地 MySQL。
-- 本阶段不需要 Node.js、npm 或 Docker。
+- 前端要求 Node.js `^22.18.0 || >=24.12.0`，本阶段使用 Node.js 24.20.0 / npm 11.19.0 验证。
+- 前端开发端口 `5173` 可用；不需要 Docker，不修改系统 Java / Node 配置。
 
 IntelliJ IDEA 可以直接打开 `backend/pom.xml`，项目 SDK 和 Maven Runner JRE 均选择 JDK 18，Maven 选择 Wrapper。
 
@@ -100,6 +128,79 @@ mvnw.cmd spring-boot:run
 按 `Ctrl+C` 停止。应用名称为 `backend`，端口为 `8080`，配置位于 `backend/src/main/resources/application.yml`。
 
 Linux 环境也保留了官方 Wrapper 脚本，可在 `backend` 中使用 `sh mvnw spring-boot:run`。
+
+## 启动前端
+
+先在单独终端按上文启动后端，再在项目根目录打开另一个 PowerShell：
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+首次创建工程时使用 `npm install` 生成并提交锁文件；克隆仓库及后续验证使用 `npm ci`。
+无需创建 `.env`。访问 [前端首页](http://localhost:5173)，后端地址为 [localhost:8080](http://localhost:8080/api/hello)。
+按 `Ctrl+C` 停止开发服务。端口被占用时 Vite 会报错，不会静默换端口。
+
+`vite.config.js` 将 `/api` 原路径代理到 `http://localhost:8080`。浏览器只访问同源 `/api/...`，
+页面不硬编码后端地址。生产构建不包含开发代理，未来部署时需要 Nginx 转发 `/api` 到后端，
+并为 Vue Router history 模式配置前端路径回退到 `index.html`；本阶段未部署。
+
+### 页面与 API 集成
+
+| 路由 | 页面作用 |
+| --- | --- |
+| `/` | Hero、热门 Windows、常用工具、最新文章；独立请求三个已有列表，各取前三项 |
+| `/windows` | 展示版本、版本名称、架构、发布日期、简介与详情入口 |
+| `/windows/:id` | Windows 详情、SHA-256、官方链接、可选图片 |
+| `/tools` | 展示工具图标文本、名称、描述、分类 |
+| `/tools/:slug` | 工具介绍，明确提示下一阶段开放；不跟随未来 `path` |
+| `/articles` | 文章标题、摘要、封面、分类、浏览量、发布时间；不展示正文 |
+| `/articles/:id` | 文章纯文本正文、摘要、封面及发布时间 / 更新时间等信息 |
+| 其他路径 | 404 页面，提供返回首页入口 |
+
+顶部导航、主内容和 Footer 由 `MainLayout` 统一提供；CSS Grid / Flexbox 适配桌面、平板、手机，
+长标题、URL、SHA-256 和正文可换行。所有请求页面提供加载、空数据、错误及重试状态。
+首页各区块独立处理错误；同类详情路由参数变化会重新加载，迟到的旧请求不会覆盖新页面。
+
+`src/utils/request.js` 统一配置 Axios（`baseURL: '/api'`，超时 10 秒），成功解包 `ApiResponse.data`。
+已知公开错误消息转为中文，未知业务错误、HTTP 500、网络错误和超时均提供安全提示，
+不展示 SQL、堆栈、Axios 内部对象或服务器原始错误内容。
+`src/api/windows.js`、`tools.js`、`articles.js` 封装六个列表 / 详情 GET 方法。
+
+文章通过 Vue 文本插值和 `white-space: pre-wrap` 展示，**不使用 `v-html` 或 Markdown 解析器**。
+Windows 下载仅使用后端提供的 HTTPS `microsoft.com` 或其子域链接，拒绝非官方域名与带凭据的 URL；
+前端不生成其他下载地址，不存储 ISO。图片拒绝 `javascript:`、`data:` 等非 HTTP(S) 协议。
+未配置真实前端环境文件，也不将数据库凭据传入前端。
+
+### 前端测试与构建
+
+在 `frontend` 目录执行：
+
+```powershell
+npm ci
+npm run lint
+npm run format:check
+npm run test
+npm run build
+```
+
+`npm run test` 一次性执行 Vitest，`npm run test:unit` 用于监听开发；`npm run format` 格式化前端文件。
+测试使用 Vue Test Utils + jsdom、模拟 API / Axios adapter，覆盖请求解包和错误处理、六个 API 路径、
+全部路由、页面状态与重试、详情参数切换、旧请求竞态、文章 XSS、官方链接校验和首页部分失败。
+测试不需要 MySQL，不连接真实 API，也未引入 E2E 框架或 Mock Service Worker。
+
+`npm run build` 产物位于 `frontend/dist/`，不会写入后端 `resources/static`，不提交 Git。
+可用 `npm run preview` 本地查看生产构建；preview 仅供本地检查，不是生产服务器，真实部署需按上文配置反向代理。
+
+### 前后端联调边界
+
+真实 MySQL 联调需要在后端进程环境提供 `DB_PASSWORD`，并先手工初始化数据库。
+访问首页及三个列表，从实际数据进入详情；检查浏览器 Network 中 `/api/windows`、`/api/tools`、
+`/api/articles` 均返回统一 JSON，并检查不存在资源的 404 状态。
+当前阶段执行环境未提供 `DB_PASSWORD`，未完成真实 Spring Boot + MySQL 数据链路联调；
+后端回归使用测试 H2，前端测试使用模拟响应，不能据此宣称真实 MySQL 已连通。
 
 ## Database
 
@@ -140,7 +241,7 @@ Linux 环境也保留了官方 Wrapper 脚本，可在 `backend` 中使用 `sh m
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
    同时包含 5 个工具目录项（JSON、UUID、时间戳、SHA256、Base64）和 3 篇原创简短示例文章。
-   工具仅提供元数据，`path` 是未来前端路由，当前阶段未实现对应页面或工具功能；示例文章不是完整技术教程。
+   工具仅提供元数据，`path` 是未来功能路由，当前前端只通过 `/tools/:slug` 展示工具介绍，不跟随 `path`；工具功能未实现，示例文章不是完整技术教程。
    Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
    在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
    不创建默认管理员、密码或密钥。不用于并发执行，未为 seed 新增业务唯一约束。
@@ -367,4 +468,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 5：Vue 3 前端基础工程；本次未提前实现。
+下一阶段仅建议：阶段 6：在线工具功能开发，优先 JSON 格式化、UUID、时间戳、SHA-256、Base64；本次未提前实现。
