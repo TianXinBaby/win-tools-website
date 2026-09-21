@@ -35,14 +35,19 @@ class ContentDevSeedTests {
     void seedCanBeRepeatedAndProvidesPublicExamplesWithoutAdminAccounts() {
         seed();
         seed();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(5L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(9L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM article", Long.class)).isEqualTo(3L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM admin_user", Long.class)).isZero();
         var tools = toolService.listPublicTools();
-        assertThat(tools).extracting(ToolVO::slug).containsExactly("json", "uuid", "timestamp", "sha256", "base64");
+        assertThat(tools).extracting(ToolVO::slug).containsExactly("json", "uuid", "timestamp", "sha256", "base64",
+                "qrcode", "image-compress", "image-resize", "image-convert");
         assertThat(tools).allSatisfy(tool -> {
             assertThat(tool.path()).isEqualTo("/tools/" + tool.slug());
-            assertThat(tool.description()).contains("当前阶段未实现工具功能");
+            if (tool.category().equals("media")) {
+                assertThat(tool.description()).contains("本地");
+            } else {
+                assertThat(tool.description()).contains("当前阶段未实现工具功能");
+            }
             assertThat(toolService.getPublicTool(tool.slug())).isEqualTo(tool);
         });
         var articles = articleService.listPublicArticles();
@@ -59,6 +64,8 @@ class ContentDevSeedTests {
         seed();
         jdbc.update("UPDATE tool SET status = 0, description = ?, sort_order = 42 WHERE slug = 'json'",
                 "User-maintained tool");
+        jdbc.update("UPDATE tool SET status = 0, description = ?, sort_order = 43 WHERE slug = 'qrcode'",
+                "User-maintained media tool");
         jdbc.update("UPDATE article SET status = 0, content = ?, view_count = 27 WHERE slug = 'online-tools-guide'",
                 "User-maintained draft");
         var toolsBefore = jdbc.queryForList("SELECT * FROM tool ORDER BY id");

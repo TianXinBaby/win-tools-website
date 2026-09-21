@@ -2,10 +2,10 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第六阶段：基础在线工具功能**，保留前四阶段的后端基础设施、Hello、Windows、Tool 和 Article API。
+当前已实现**第七阶段：二维码与图片处理工具**，保留前六阶段的功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
-已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64 五个浏览器本地工具。
+已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、图片压缩、图片尺寸调整、图片格式转换九个浏览器本地工具。
 后台写接口、后台管理和登录当前阶段未实现。
 
 ## 当前技术栈
@@ -30,6 +30,7 @@ Connector/J 9.7.0 是支持 MySQL Server 8.0 及以上的正式版本，见
 - Vue Router 5.3.1 / Axios 1.20.0 / Element Plus 2.14.6
 - Vitest 4.1.11 / Vue Test Utils 2.5.1 / jsdom 30.1.0（仅开发测试）
 - ESLint 10.11.0 / Prettier 3.9.6
+- qrcode 1.5.4：专用二维码编码依赖，使用浏览器 Canvas 输出；[上游文档](https://github.com/soldair/node-qrcode)。现有依赖不提供 QR 编码，未新增图片处理依赖。
 
 精确依赖由 `frontend/package-lock.json` 锁定。Element Plus 的 Button、Alert、Empty、Skeleton、Tag
 在 `main.js` 中直接注册并引入对应样式，未添加自动导入插件或复杂组件配置。
@@ -53,7 +54,7 @@ win-tools-website/
 │   │   ├── layouts/MainLayout.vue
 │   │   ├── router/index.js
 │   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态）
-│   │   ├── views/（首页、列表、详情、404、tools/ 五个工具页面）
+│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -162,6 +163,10 @@ PowerShell 统一使用 `npm.cmd`，避免 `npm.ps1` 被 ExecutionPolicy 阻止�
 | `/tools/timestamp` | Unix 秒 / 毫秒与浏览器本地日期时间双向转换 |
 | `/tools/sha256` | UTF-8 文本 SHA-256 Hash |
 | `/tools/base64` | UTF-8 文本 Base64 编解码，支持中文和 emoji |
+| `/tools/qrcode` | 文本 / URL 生成二维码，下载 PNG |
+| `/tools/image-compress` | JPEG / WebP 质量调整、PNG 重新编码 |
+| `/tools/image-resize` | 保持原图比例或自定义宽高，下载图片 |
+| `/tools/image-convert` | 静态 JPEG / PNG / WebP 格式转换 |
 | `/tools/:slug` | 未实现工具的通用介绍，继续提示尚未开放 |
 | `/articles` | 文章标题、摘要、封面、分类、浏览量、发布时间；不展示正文 |
 | `/articles/:id` | 文章纯文本正文、摘要、封面及发布时间 / 更新时间等信息 |
@@ -202,6 +207,32 @@ Web Crypto 和剪贴板通常需要安全上下文：本地开发使用 localhos
 五个具体路由位于通用 /tools/:slug 之前；轻量 registry 仅维护开放的 slug，不复制后端名称、描述等元数据。
 工具卡片优先采用解析为对应工具的站内 path，异常 path 按路由名称回退；未开放工具继续展示原有详情。
 
+### 第七阶段：二维码与图片处理
+
+图片和输入内容仅在当前浏览器中处理，不会上传服务器。
+不发送用户内容到 `/api` 或 Analytics，不写数据库、浏览器存储、IndexedDB、Cookie 或 console。
+刷新或离开页面后丢弃状态。工具目录继续从原有 API 获取元数据，媒体计算不依赖后端。
+
+- 二维码按钮生成，支持文本、中文、emoji、URL；URL 仅作为文本编码，不访问、不验证、不生成追踪链接。
+  二维码是编码，不是加密。尺寸为 128 / 256 / 512 / 1024 px，最多 1200 个 UTF-8 字节，过密内容要求更大尺寸。
+  下载为 `qrcode.png`，保留四个模块的空白边界。
+- 图片输入和输出重点支持静态 JPEG / PNG / WebP。拒绝 GIF 和动画 WebP，不支持 HEIC、RAW、PSD、AVIF。
+  集中限制单文件 20 MiB（20 × 1024 × 1024 字节）、单边 8192 px、总像素 1600 万；处理前读取格式头检查尺寸，解码后再次检查。
+- 压缩默认质量 80%，JPEG / WebP 可调 10%–100%。PNG 仅重新编码，不显示质量滑块，也不保证文件变小。
+  结果显示原大小、输出大小、节省字节和比例；没有变小会明确提示，节省数值最低为零。
+- 尺寸调整默认保持原图比例，修改宽或高时按原始尺寸计算另一边；可关闭比例锁自定义正整数宽高。
+  输出保留原 MIME 格式，不静默更改格式。下载文件名含目标宽高。
+- 格式转换显式选择 JPEG / PNG / WebP。JPEG 不支持透明背景，透明区域将填充为白色。
+  PNG 保留透明通道，JPEG / WebP 提供质量设置。浏览器导出若回退为不同 MIME，会报错并建议改选格式。
+- 处理后的图片通常不会保留原始 EXIF 等元数据；不承诺绝对清除全部元数据。
+  优先使用 `createImageBitmap` 和 `imageOrientation: 'from-image'`，缺失时使用 HTMLImageElement 解码；不承诺完全兼容所有 EXIF 方向。
+- 本地预览使用 Blob Object URL；替换、清空、卸载时释放，下载 URL 启动后延迟回收。
+  释放 Bitmap 和临时 Canvas，处理期间禁用重复操作；清空或离开后过期任务不再显示结果。
+  下载生成新文件，不自动覆盖原文件，文件名清理路径分隔符、非法字符和 Windows 保留名称。
+
+需要浏览器支持 File / Blob、Canvas 2D、`canvas.toBlob` 和 Object URL；不支持时显示中文错误。
+WebP 编码及照片方向行为取决于浏览器。文件大小与像素保护可降低内存风险，接近上限的图片仍可能耗时。
+
 ### 前端测试与构建
 
 在 `frontend` 目录执行：
@@ -212,6 +243,7 @@ npm.cmd run lint
 npm.cmd run format:check
 npm.cmd run test
 npm.cmd run build
+npm.cmd audit
 ```
 
 `npm.cmd run test` 一次性执行 Vitest，`npm.cmd run test:unit` 用于监听开发；`npm.cmd run format` 格式化前端文件。
@@ -219,6 +251,9 @@ npm.cmd run build
 全部路由、页面状态与重试、详情参数切换、旧请求竞态、文章 XSS、官方链接校验和首页部分失败。
 新增工具测试覆盖 JSON 类型、UUID v4 / 数量限制、时间戳边界与固定时钟、真实 SHA-256 标准向量、Unicode Base64、
 复制失败、工具关键交互、异步清空竞态、具体路由和通用详情回归。保留第五阶段全部测试，通用详情用例改用未开放 slug。
+媒体测试覆盖格式头检查、文件和像素限制、尺寸比例、质量、文件名、Canvas 参数、白背景、失败恢复、Object URL 生命周期、清空竞态与新路由。
+jsdom 仅验证逻辑和模拟 Canvas 边界，实际图片质量与导出通过真实浏览器验证。
+媒体浏览器验证脚本及运行方法见 [frontend/README.md](frontend/README.md)，只使用程序生成素材并将产物保存在 `.cache/`。
 测试不需要 MySQL，不连接真实 API，也未引入 E2E 框架或 Mock Service Worker。
 
 `npm.cmd run build` 产物位于 `frontend/dist/`，不会写入后端 `resources/static`，不提交 Git。
@@ -270,9 +305,10 @@ npm.cmd run build
    `seed-dev.sql` 仅供开发演示，与正式建表脚本分开，应用不会自动执行。
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
-   同时包含 5 个工具目录项（JSON、UUID、时间戳、SHA256、Base64）和 3 篇原创简短示例文章。
-   工具表继续只提供元数据；五个 `path` 已与第六阶段真实工具路由一致，因此不修改 SQL。
-   seed 中的描述和示例文章保留早期目录阶段文案，不代表当前开放状态；前端 registry 标注实际开放状态。示例文章不是完整技术教程。
+   同时包含 9 个工具目录项（五个基础工具及二维码、压缩、尺寸调整、格式转换）和 3 篇原创简短示例文章。
+   工具表继续只提供元数据；第七阶段仅补充四个媒体工具，其 slug / path 与前端路由一致。
+   已导入过的开发库需手工再次执行 seed 才会出现新增目录项；脚本不自动运行。
+   早期五个工具的描述和示例文章保留目录阶段文案，不代表当前开放状态；前端 registry 标注实际开放状态。示例文章不是完整技术教程。
    Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
    在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
    不创建默认管理员、密码或密钥。不用于并发执行，未为 seed 新增业务唯一约束。
@@ -499,4 +535,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 7：二维码生成与图片处理工具。
+下一阶段仅建议：阶段 8：后台管理与管理员认证基础。
