@@ -55,6 +55,27 @@ SELECT 'Base64', 'base64', 'Base64 工具目录示例；当前阶段未实现工
 FROM tool WHERE slug = 'base64' HAVING COUNT(*) = 0;
 
 -- Short original examples for local API development, not complete technical tutorials.
+-- Phase 7: browser-local media tools; catalog metadata only, no uploaded content.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '二维码生成', 'qrcode', '浏览器本地编码文本或 URL，生成并下载 PNG 二维码。',
+       'media', '/tools/qrcode', 1, 60
+FROM tool WHERE slug = 'qrcode' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '图片压缩', 'image-compress', '本地调整 JPEG / WebP 质量或重新编码 PNG，不保证体积减小。',
+       'media', '/tools/image-compress', 1, 70
+FROM tool WHERE slug = 'image-compress' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '图片尺寸调整', 'image-resize', '本地调整图片宽高，默认保持原图比例与格式。',
+       'media', '/tools/image-resize', 1, 80
+FROM tool WHERE slug = 'image-resize' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '图片格式转换', 'image-convert', '本地转换静态 JPEG、PNG、WebP；JPEG 透明区域填充白色。',
+       'media', '/tools/image-convert', 1, 90
+FROM tool WHERE slug = 'image-convert' HAVING COUNT(*) = 0;
+
 INSERT INTO article (title, slug, summary, content, category, status)
 SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',
        '本示例用于演示文章查询。请从网站 Windows 资源详情中的 Microsoft 官方入口查看下载说明，具体版本和系统要求以官方页面为准。',

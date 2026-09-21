@@ -70,6 +70,21 @@ async function open(path) {
 }
 
 describe('页面及路由', () => {
+  it('工具目录列出阶段 7 元数据并链接真实媒体工具', async () => {
+    const slugs = ['qrcode', 'image-compress', 'image-resize', 'image-convert']
+    getTools.mockResolvedValue(
+      slugs.map((slug, i) => ({ ...tool, id: i + 10, slug, name: slug, path: `/tools/${slug}` })),
+    )
+    await open('/tools')
+    await flushPromises()
+    expect(wrapper.text()).toContain('二维码与图片压缩、尺寸调整、格式转换')
+    for (const slug of slugs) {
+      expect(wrapper.find(`a.card-link[href="/tools/${slug}"]`).exists()).toBe(true)
+    }
+    expect(wrapper.findAll('.tool-availability').map((entry) => entry.text())).toEqual(
+      Array(4).fill('已开放 · 浏览器本地运行'),
+    )
+  })
   it.each([
     ['/', 'Windows 资源', 'home'],
     ['/windows', 'Windows 下载', 'windows'],

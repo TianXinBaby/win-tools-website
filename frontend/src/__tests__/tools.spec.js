@@ -184,9 +184,18 @@ describe('Base64 UTF-8', () => {
   })
 })
 
-it('registry 仅开放本阶段五个工具', () => {
-  for (const slug of ['json', 'uuid', 'timestamp', 'sha256', 'base64'])
+it('registry 开放阶段 6 和阶段 7 的九个工具', () => {
+  for (const slug of [
+    'json',
+    'uuid',
+    'timestamp',
+    'sha256',
+    'base64',
+    'qrcode',
+    'image-compress',
+    'image-resize',
+    'image-convert',
+  ])
     expect(isToolAvailable(slug)).toBe(true)
-  for (const slug of ['qr-code', 'image-compress', 'unknown', 'toString'])
-    expect(isToolAvailable(slug)).toBe(false)
+  for (const slug of ['qr-code', 'unknown', 'toString']) expect(isToolAvailable(slug)).toBe(false)
 })

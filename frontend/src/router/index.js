@@ -56,6 +56,30 @@ export const routes = [
     meta: { title: 'Base64 编解码' },
   },
   {
+    path: '/tools/qrcode',
+    name: 'tool-qrcode',
+    component: () => import('../views/tools/QrCodeToolView.vue'),
+    meta: { title: '二维码生成' },
+  },
+  {
+    path: '/tools/image-compress',
+    name: 'tool-image-compress',
+    component: () => import('../views/tools/ImageCompressToolView.vue'),
+    meta: { title: '图片压缩' },
+  },
+  {
+    path: '/tools/image-resize',
+    name: 'tool-image-resize',
+    component: () => import('../views/tools/ImageResizeToolView.vue'),
+    meta: { title: '图片尺寸调整' },
+  },
+  {
+    path: '/tools/image-convert',
+    name: 'tool-image-convert',
+    component: () => import('../views/tools/ImageConvertToolView.vue'),
+    meta: { title: '图片格式转换' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),
