@@ -365,6 +365,18 @@ npm run lint
 
 新增重要交互功能时，应增加相应测试。
 
+## Windows npm 命令规则
+
+在 Windows PowerShell 环境下，如果系统 ExecutionPolicy 阻止 `npm.ps1`，
+优先使用 `npm.cmd`，例如：
+
+npm.cmd ci
+npm.cmd run lint
+npm.cmd run test
+npm.cmd run build
+
+不要为了运行 npm 擅自修改系统或用户级 PowerShell ExecutionPolicy。
+
 ---
 
 # 14. 完成定义（Definition of Done）

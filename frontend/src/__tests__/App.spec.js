@@ -75,7 +75,7 @@ describe('页面及路由', () => {
     ['/windows', 'Windows 下载', 'windows'],
     ['/windows/1', windows.name, 'windows-detail'],
     ['/tools', '在线工具', 'tools'],
-    ['/tools/json', tool.name, 'tool-detail'],
+    ['/tools/future-tool', tool.name, 'tool-detail'],
     ['/articles', '教程文章', 'articles'],
     ['/articles/3', article.title, 'article-detail'],
     ['/missing/nested', '页面不存在', 'not-found'],
@@ -93,7 +93,7 @@ describe('页面及路由', () => {
     ['/tools', getTools, [tool]],
     ['/articles', getArticles, [article]],
     ['/windows/1', getWindowsDetail, windows],
-    ['/tools/json', getToolDetail, tool],
+    ['/tools/future-tool', getToolDetail, tool],
     ['/articles/3', getArticleDetail, article],
   ])('%s 显示加载、失败并可重试恢复', async (path, api, result) => {
     let rejectRequest
@@ -120,7 +120,7 @@ describe('页面及路由', () => {
     ['/tools', getTools, []],
     ['/articles', getArticles, []],
     ['/windows/1', getWindowsDetail, null],
-    ['/tools/json', getToolDetail, null],
+    ['/tools/future-tool', getToolDetail, null],
     ['/articles/3', getArticleDetail, null],
   ])('%s 处理空数据', async (path, api, result) => {
     api.mockResolvedValueOnce(result)
@@ -200,7 +200,7 @@ describe('页面及路由', () => {
   })
 
   it('工具详情明确未开放，不跟随未来 path', async () => {
-    await open('/tools/json')
+    await open('/tools/future-tool')
     await flushPromises()
     expect(wrapper.text()).toContain('该工具将在下一阶段开放')
     expect(wrapper.find('a[href="/unimplemented"]').exists()).toBe(false)
@@ -209,7 +209,7 @@ describe('页面及路由', () => {
 
   it.each([
     ['/windows/1', '/windows/2', getWindowsDetail, '2'],
-    ['/tools/json', '/tools/uuid', getToolDetail, 'uuid'],
+    ['/tools/future-tool', '/tools/another-tool', getToolDetail, 'another-tool'],
     ['/articles/3', '/articles/4', getArticleDetail, '4'],
   ])('同类详情路由变化重新请求 %s', async (first, second, api, parameter) => {
     const router = await open(first)
