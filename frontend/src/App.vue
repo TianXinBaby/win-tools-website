@@ -1,7 +1,10 @@
 <script setup>
 import MainLayout from './layouts/MainLayout.vue'
+import { useRoute } from 'vue-router'
+const route = useRoute()
 </script>
 
 <template>
-  <MainLayout><RouterView /></MainLayout>
+  <RouterView v-if="route.meta.adminArea" />
+  <MainLayout v-else><RouterView /></MainLayout>
 </template>

@@ -1,6 +1,26 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { installAdminGuard } from './adminGuard'
 
 export const routes = [
+  {
+    path: '/admin/login',
+    name: 'admin-login',
+    component: () => import('../views/admin/AdminLoginView.vue'),
+    meta: { title: '管理员登录', adminArea: true },
+  },
+  {
+    path: '/admin',
+    component: () => import('../layouts/AdminLayout.vue'),
+    meta: { requiresAdmin: true, adminArea: true },
+    children: [
+      {
+        path: '',
+        name: 'admin-dashboard',
+        component: () => import('../views/admin/AdminDashboardView.vue'),
+        meta: { title: 'Dashboard' },
+      },
+    ],
+  },
   {
     path: '/',
     name: 'home',
@@ -114,4 +134,5 @@ const router = createRouter({
 router.afterEach((to) => {
   document.title = `${to.meta.title} · Win Tools`
 })
+installAdminGuard(router)
 export default router

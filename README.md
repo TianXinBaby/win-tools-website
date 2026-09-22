@@ -2,17 +2,18 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第七阶段：二维码与图片处理工具**，保留前六阶段的功能和后端 API。
+当前已实现**第八阶段：管理员认证与后台基础框架**，保留前七阶段的功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、图片压缩、图片尺寸调整、图片格式转换九个浏览器本地工具。
-后台写接口、后台管理和登录当前阶段未实现。
+已开放管理员登录与后台 Dashboard。Windows / Tool / Article 后台管理 CRUD 当前阶段未实现，属于阶段 9。
 
 ## 当前技术栈
 
 - JDK 18
 - Spring Boot 3.5.16（稳定版，Java 18 在其兼容范围内）
 - Spring Web、Spring Validation、Lombok
+- Spring Security 6.5.11；spring-security-test 6.5.11（test scope），均由 Spring Boot BOM 管理
 - MySQL 8 / MySQL Connector/J 9.7.0（runtime，由 Spring Boot 管理版本）
 - MyBatis-Plus Spring Boot 3 Starter 3.5.17
 - H2 2.3.232（仅 test scope，由 Spring Boot 管理版本）
@@ -47,14 +48,14 @@ win-tools-website/
 ├── frontend/
 │   ├── public/favicon.svg
 │   ├── src/
-│   │   ├── api/（windows.js、tools.js、articles.js）
+│   │   ├── api/（windows.js、tools.js、articles.js、adminAuth.js）
 │   │   ├── assets/main.css
 │   │   ├── components/（请求状态、Windows / Tool / Article 卡片）
 │   │   ├── composables/useResource.js
-│   │   ├── layouts/MainLayout.vue
-│   │   ├── router/index.js
+│   │   ├── layouts/（MainLayout.vue、AdminLayout.vue）
+│   │   ├── router/（index.js、adminGuard.js）
 │   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态）
-│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面）
+│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面、admin/ 登录与 Dashboard）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -76,12 +77,15 @@ win-tools-website/
         │   ├── java/com/xiaoc/backend/
         │   │   ├── BackendApplication.java
         │   │   ├── common/ApiResponse.java
-        │   │   ├── controller/（HelloController、WindowsController、ToolController、ArticleController）
+        │   │   ├── config/SecurityConfig.java
+        │   │   ├── security/（AdminPrincipal、JsonSecurityHandler、AdminHttpFirewall）
+        │   │   ├── dto/AdminLoginRequest.java
+        │   │   ├── controller/（HelloController、WindowsController、ToolController、ArticleController、AdminAuthController）
         │   │   ├── entity/（WindowsVersion、Tool、Article、AdminUser）
         │   │   ├── mapper/（对应的四个 BaseMapper 接口）
-        │   │   ├── service/（WindowsVersionService、ToolService、ArticleService）
+        │   │   ├── service/（WindowsVersionService、ToolService、ArticleService、AdminAuthService、AdminUserDetailsService）
         │   │   ├── service/impl/（对应的三个 Service 实现）
-        │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO、ToolVO、ArticleListVO、ArticleDetailVO）
+        │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO、ToolVO、ArticleListVO、ArticleDetailVO、AdminUserVO、AdminCsrfVO）
         │   │   └── exception/（GlobalExceptionHandler、ResourceNotFoundException）
         │   └── resources/application.yml
         └── test/
@@ -254,7 +258,8 @@ npm.cmd audit
 媒体测试覆盖格式头检查、文件和像素限制、尺寸比例、质量、文件名、Canvas 参数、白背景、失败恢复、Object URL 生命周期、清空竞态与新路由。
 jsdom 仅验证逻辑和模拟 Canvas 边界，实际图片质量与导出通过真实浏览器验证。
 媒体浏览器验证脚本及运行方法见 [frontend/README.md](frontend/README.md)，只使用程序生成素材并将产物保存在 `.cache/`。
-测试不需要 MySQL，不连接真实 API，也未引入 E2E 框架或 Mock Service Worker。
+Vitest 不需要 MySQL，不连接真实 API；管理员 Chrome 验证连接隔离的 Spring Boot + H2 测试服务。
+未引入 E2E 框架或 Mock Service Worker。
 
 `npm.cmd run build` 产物位于 `frontend/dist/`，不会写入后端 `resources/static`，不提交 Git。
 可用 `npm.cmd run preview` 本地查看生产构建；preview 仅供本地检查，不是生产服务器，真实部署需按上文配置反向代理。
@@ -264,8 +269,71 @@ jsdom 仅验证逻辑和模拟 Canvas 边界，实际图片质量与导出通过
 真实 MySQL 联调需要在后端进程环境提供 `DB_PASSWORD`，并先手工初始化数据库。
 访问首页及三个列表，从实际数据进入详情；检查浏览器 Network 中 `/api/windows`、`/api/tools`、
 `/api/articles` 均返回统一 JSON，并检查不存在资源的 404 状态。
-当前阶段执行环境未提供 `DB_PASSWORD`，未完成真实 Spring Boot + MySQL 数据链路联调；
-后端回归使用测试 H2，前端测试使用模拟响应，不能据此宣称真实 MySQL 已连通。
+当前阶段执行环境未提供 `DB_PASSWORD`，未使用真实 MySQL 管理员账户完成登录实机验证。
+后端自动认证测试使用 H2；前端 Vitest 使用模拟响应，Chrome 联调使用隔离 H2 测试管理员。
+这些测试不能据此证明真实 MySQL 已连通。
+
+## 第八阶段：管理员认证与后台基础框架
+
+认证使用 Spring Security + BCrypt（strength 12）+ 服务端 HTTP Session + HttpOnly Cookie + CSRF。
+没有 JWT、Access / Refresh Token、普通用户注册或复杂 RBAC；前端没有新增依赖。
+认证依据是服务端 Session，前端仅在运行时内存保存管理员显示信息。
+
+### 账户和密码
+
+复用现有 `admin_user` 表，未修改正式数据库结构。`admin_user.password` 必须保存 BCrypt Hash，禁止明文密码。
+只有 `status = 1` 可以登录；密码错误、用户名不存在及禁用账户统一返回 HTTP 401 和 `用户名或密码错误`。
+用户名最多 100 字符并 trim；密码最多 72 字符，不 trim，也不增加最短长度规则。
+
+**项目不会创建默认管理员。** 正式 SQL、开发 seed 和应用启动流程都不创建管理员账户。
+真实数据库没有管理员是允许状态；管理员初始化属于未来明确的运维流程。
+当前没有匿名注册 / 创建管理员接口或公开密码 Hash API，也不在配置和文档中提供真实密码。
+测试凭据仅存在于测试源码和明确的浏览器 test fixture 中，不进入正式 Jar 或 SQL。
+
+### 认证 API
+
+接口均返回现有 `ApiResponse`。成功的 login / me 的 `data` 仅包含 `id`、`username`、`nickname`。
+
+| 方法和路径 | 认证要求 | CSRF | HTTP 状态 |
+| --- | --- | --- | --- |
+| `GET /api/admin/auth/csrf` | 可匿名 | 获取真实 token 和 headerName | 200 |
+| `POST /api/admin/auth/login` | 可匿名 | 必须 | 成功 200；参数错误 400；凭据错误 401；CSRF 错误 403 |
+| `GET /api/admin/auth/me` | ROLE_ADMIN | 安全读取不要求提交 token | 200；未认证 401；权限不足 403 |
+| `POST /api/admin/auth/logout` | ROLE_ADMIN | 必须 | 200；未认证且 CSRF 有效 401；CSRF / 权限错误 403 |
+
+登录 JSON 包含 `username` 和 `password`。前端先 GET csrf，再把返回的 `token` 放到 `headerName` 指定的请求头中。
+退出前重新 GET csrf 并以同样方式携带请求头；CSRF token 仅用于当前操作，不写入 localStorage、sessionStorage 或 IndexedDB。
+登录成功会轮换 Session ID、清除旧 CSRF token，并显式把 SecurityContext 保存至 HTTP Session。
+退出使用 Spring Security 的 LogoutHandler 清空认证并使 Session 失效，之后 `/me` 返回 401。没有 GET logout。
+
+401 / 403 使用 JSON Handler，登录失败使用安全的统一文案，不返回 HTML 登录页、302、Java 类名或内部堆栈。
+安全过滤链只保护 `/api/admin/**`，除 csrf GET 与 login POST 外均需要 ROLE_ADMIN。
+公开 Hello / Windows / Tools / Articles 保持匿名访问，原有公开 404、写入方法 405 保持不变。
+URL 防火墙仅为既有的精确 `GET /api/tools/%25`（字面 `%` slug）保留兼容路径，后台编码路径和双重编码仍拒绝。
+未来新增可修改数据的接口应放在受 CSRF 保护的后台路径中。
+
+实现参考 Spring Security 6.5 的 [Session 持久化与认证策略](https://docs.spring.io/spring-security/reference/6.5/servlet/authentication/session-management.html)
+及 [CSRF 文档](https://docs.spring.io/spring-security/reference/6.5/servlet/exploits/csrf.html)。
+
+### Session 和生产配置
+
+- Session 空闲超时为 30 分钟，使用 Cookie 传递，禁止 URL 重写传递 Session ID。
+- Cookie 设置 `HttpOnly=true`、`SameSite=Lax`；前端不读取 Session Cookie 或 Session ID。
+- 本地 HTTP 默认 `Secure=false`。**生产必须使用 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`。**
+- 保留 Session fixation protection；自定义登录显式调用 `ChangeSessionIdAuthenticationStrategy` 和 `CsrfAuthenticationStrategy`。
+- Nginx 同站点转发 `/api`，开发沿用 Vite `/api` proxy。浏览器自动携带同源 Cookie，无需读取 Cookie 或添加跨域认证方案。
+
+### 后台页面和测试
+
+`/admin/login` 提供用户名、密码、loading 和安全错误提示；`/admin` 显示基础欢迎信息和退出操作。
+进入后台或登录页由路由守卫调用 `/me` 检查 Session，刷新同样从服务端恢复，不信任内存或持久化 boolean。
+后台请求返回 401 时清理运行时状态、跳转登录并提示重新登录；网络失败不放行后台，不无限重试。
+退出先完成后端 logout，成功后才清理状态和跳转。Dashboard 没有假统计、CRUD 页面或统计 API。
+
+后端测试覆盖真实 CSRF 往返、登录 / me / logout、Session ID 轮换、旧 CSRF 失效、Cookie 配置、错误响应和公开 API 回归。
+前端测试覆盖表单、loading、CSRF 顺序与请求头、服务端认证恢复、路由守卫、失效跳转和退出。
+真实 Chrome 通过 Vite proxy 验证隔离 H2 账户的登录、刷新、退出、HttpOnly / SameSite Cookie、无持久化存储及四档屏宽。
+复现命令见 [frontend/README.md](frontend/README.md)。截图和报告仅输出到被忽略的 `.cache/`。
 
 ## Database
 
@@ -399,7 +467,7 @@ Windows 数据来自 `windows_version`，只公开 `status=1` 的资源；其他
 列表字段为 `id`、`name`、`version`、`edition`、`architecture`、`releaseDate`、`description`、`imageUrl`；
 详情在此基础上增加 `officialDownloadUrl` 和 `sha256`。
 零和负数 ID 返回 404；非整数或超出 Java Long 范围的 ID 返回 400，均使用统一 JSON。
-POST / PUT / PATCH / DELETE 返回 405；本阶段没有分页、搜索、复杂筛选或后台 API。
+公开资源接口的 POST / PUT / PATCH / DELETE 返回 405；本阶段没有分页、搜索、复杂筛选或后台内容管理 API。
 
 ### Tool 与 Article 查询规则
 
@@ -535,4 +603,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 8：后台管理与管理员认证基础。
+下一阶段仅建议：阶段 9：Windows / Tool / Article 后台管理 CRUD。

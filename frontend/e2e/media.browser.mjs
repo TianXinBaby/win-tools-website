@@ -309,7 +309,9 @@ try {
     'No external requests',
   )
   assert.deepEqual(
-    requests.filter((request) => request.method !== 'GET' || /\/api\//.test(request.url)),
+    requests.filter(
+      (request) => request.method !== 'GET' || new URL(request.url).pathname.startsWith('/api/'),
+    ),
     [],
   )
   const report = {
