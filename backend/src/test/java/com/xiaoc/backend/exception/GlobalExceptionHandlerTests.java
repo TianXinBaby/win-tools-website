@@ -8,6 +8,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.xiaoc.backend.config.SecurityConfig;
+import com.xiaoc.backend.service.AdminUserDetailsService;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -17,8 +20,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(GlobalExceptionHandlerTests.FailingController.class)
-@Import(GlobalExceptionHandlerTests.FailingController.class)
+@Import({GlobalExceptionHandlerTests.FailingController.class, SecurityConfig.class})
 class GlobalExceptionHandlerTests {
+
+    @MockitoBean
+    private AdminUserDetailsService adminUserDetailsService;
 
     @Autowired
     private MockMvc mockMvc;

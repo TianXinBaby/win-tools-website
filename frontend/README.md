@@ -41,4 +41,36 @@ node e2e/media.browser.mjs
 脚本默认使用 Windows 标准安装位置的 Chrome；其他位置可用当前进程的 `CHROME_PATH` 指定。
 用真实无头 Chrome 检查四档宽度、图片解码和 MIME、透明转 JPEG 白背景、下载、清空及无内容上传。
 程序生成测试素材，截图、下载文件和报告仅放在 Git 忽略的根目录 `.cache/`，没有新增浏览器测试依赖。
-后台管理和登录当前阶段未实现。PowerShell 使用 `npm.cmd`，不修改 ExecutionPolicy。
+
+## 阶段 8：后台认证
+
+- `/admin/login`：管理员登录，提交前获取 CSRF token，并使用后端返回的 headerName。
+- `/admin`：通过 `/me` 确认服务端 Session 后显示 Dashboard，刷新同样恢复。
+- 退出先获取新 CSRF token，再 POST logout；后台 API 401 清理内存状态并跳登录。
+
+使用同源 `/api` proxy 的 HttpOnly Session Cookie，不使用 JWT，不读取 Session ID，不持久化认证状态或 CSRF token。
+无默认管理员。Windows / Tool / Article CRUD 当前阶段未实现，属于阶段 9。
+后端密码与生产 HTTPS / Secure Cookie 说明见根 README。
+
+认证的真实 Chrome 测试需要隔离 H2 服务。在项目根目录另开终端执行：
+
+```powershell
+cd backend
+.\mvnw.cmd test-compile spring-boot:test-run '-Dspring-boot.run.main-class=com.xiaoc.backend.support.AdminBrowserApplication'
+```
+
+这个 test-only 启动类强制使用内存 H2 并绑定 `127.0.0.1:8080`，不会访问真实 MySQL。
+临时测试账户仅存在于测试源码，退出服务即丢弃。它不会包含在正式 Jar 中；不要使用这个启动类部署生产服务。
+确认 8080 / 5173 未被其他服务占用；在 `frontend` 目录分别运行 Vite 和浏览器测试：
+
+```powershell
+npm.cmd run dev
+# 另一个终端，同样位于 frontend
+node e2e/admin.browser.mjs
+```
+
+浏览器测试验证真实 Session / CSRF 登录、刷新恢复、退出、失效跳转、Cookie 安全属性、公开 API 和四档屏宽。
+只记录结果和截图，不输出密码、Cookie 值或 CSRF token。测试结束后停止上述临时服务。
+这不是使用真实 MySQL 管理员账户完成的验证。
+
+PowerShell 使用 `npm.cmd`，不修改 ExecutionPolicy。
