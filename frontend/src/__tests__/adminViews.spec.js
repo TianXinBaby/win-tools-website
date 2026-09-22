@@ -53,6 +53,15 @@ async function fillAndSubmit() {
 }
 
 describe('后台页面及守卫', () => {
+  it.each(['/admin/windows', '/admin/tools', '/admin/articles'])(
+    '未认证访问 %s 由既有守卫跳登录',
+    async (path) => {
+      const router = await open(path)
+      expect(router.currentRoute.value.name).toBe('admin-login')
+      expect(getCurrentAdmin).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('table').exists()).toBe(false)
+    },
+  )
   it('渲染空的用户名和密码输入、登录按钮，不提供记住密码', async () => {
     await open('/admin/login')
     expect(wrapper.get('h1').text()).toBe('管理员登录')
@@ -76,7 +85,7 @@ describe('后台页面及守卫', () => {
     expect(getCurrentAdmin).toHaveBeenCalledOnce()
     expect(adminSession.admin).toEqual(admin)
     expect(wrapper.text()).toContain('欢迎，测试管理员')
-    expect(wrapper.text()).toContain('当前阶段未实现')
+    expect(wrapper.text()).toContain('内容管理')
   })
   it('已登录访问登录页经 /me 确认后跳 Dashboard', async () => {
     getCurrentAdmin.mockResolvedValue(admin)

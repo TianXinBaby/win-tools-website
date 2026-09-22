@@ -7,7 +7,7 @@ import { env } from 'node:process'
 import assert from 'node:assert/strict'
 
 const cache = fileURLToPath(new URL('../../.cache/', import.meta.url))
-const profile = `${cache}/phase8-browser-${Date.now()}`
+const profile = `${cache}/phase9-browser-${Date.now()}`
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const cases = [],
   errors = []
@@ -98,6 +98,11 @@ try {
       `(() => { const input = document.getElementById(${JSON.stringify(id)}); input.value = ${JSON.stringify(value)}; input.dispatchEvent(new Event('input', {bubbles:true})); })()`,
     )
   }
+  async function reload() {
+    await evaluate('window.browserReloadMarker = true')
+    await cdp('Page.reload')
+    await waitFor('window.browserReloadMarker !== true && document.readyState === "complete"')
+  }
   async function submit(password) {
     await fill('admin-username', 'browser-test-admin')
     await fill('admin-password', password)
@@ -117,7 +122,7 @@ try {
       `${label}: no horizontal overflow`,
     )
     const shot = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
-    await writeFile(`${cache}/phase8-${label}-${width}.png`, Buffer.from(shot.data, 'base64'))
+    await writeFile(`${cache}/phase9-${label}-${width}.png`, Buffer.from(shot.data, 'base64'))
   }
   await cdp('Runtime.enable')
   await cdp('Network.enable')
@@ -144,7 +149,7 @@ try {
   assert.equal(sessionCookie.secure, false)
   cases.push('HttpOnly SameSite=Lax development cookie')
   for (const width of [1440, 768, 390, 320]) await screenshot('dashboard', width)
-  await cdp('Page.reload')
+  await reload()
   await waitFor(
     `location.pathname === '/admin' && document.body.innerText.includes('欢迎，浏览器测试管理员')`,
   )
@@ -156,6 +161,132 @@ try {
   cases.push('authenticated login page redirects to dashboard')
   assert.deepEqual(await evaluate('[localStorage.length, sessionStorage.length]'), [0, 0])
   cases.push('no persistent browser authentication storage')
+
+  async function click(selector) {
+    await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+  }
+  async function selectStatus(value) {
+    await evaluate(`(() => {
+      const select = document.getElementById('admin-field-status');
+      select.value = ${JSON.stringify(String(value))};
+      select.dispatchEvent(new Event('change', {bubbles:true}));
+    })()`)
+  }
+  async function saveForm() {
+    await evaluate(`document.querySelector('.admin-form').requestSubmit()`)
+    await waitFor(
+      `!document.querySelector('.admin-form') && document.querySelector('.admin-resource')?.getAttribute('aria-busy') === 'false'`,
+    )
+  }
+  async function publicStatus(resource, row) {
+    const path = '/api/' + resource + '/' + (resource === 'tools' ? row.slug : row.id)
+    return evaluate(`(async () => (await fetch(${JSON.stringify(path)})).status)()`)
+  }
+  for (const [resource, fields] of [
+    [
+      'windows',
+      {
+        name: 'Browser Windows',
+        version: 'test',
+        edition: 'Pro',
+        architecture: 'x64',
+        officialDownloadUrl: 'https://www.microsoft.com/software-download/',
+        description: 'Browser description',
+      },
+    ],
+    [
+      'tools',
+      { name: 'Browser Tool', slug: 'browser-tool', path: '/tools/json', category: 'Browser' },
+    ],
+    [
+      'articles',
+      {
+        title: 'Browser Article',
+        slug: 'browser-article',
+        summary: 'Browser summary',
+        content: '<script>window.articleExecuted = true</script>\nPlain text content',
+      },
+    ],
+  ]) {
+    await open('/admin/' + resource)
+    await waitFor(
+      `!!document.querySelector('[data-action="create"]') && document.querySelector('.admin-resource')?.getAttribute('aria-busy') === 'false'`,
+    )
+    assert.equal(
+      await evaluate(
+        `(async () => (await fetch('/api/admin/${resource}', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status)()`,
+      ),
+      403,
+    )
+    await click('[data-action="create"]')
+    await waitFor(`!!document.querySelector('.admin-form')`)
+    for (const [key, value] of Object.entries(fields)) await fill('admin-field-' + key, value)
+    for (const width of [1440, 768, 390, 320]) await screenshot(resource + '-form', width)
+    await saveForm()
+    await waitFor(`!!document.querySelector('[data-action="edit"]')`)
+    const row = await evaluate(
+      `(async () => (await (await fetch('/api/admin/${resource}')).json()).data[0])()`,
+    )
+    assert.ok(row.id)
+    assert.equal(await publicStatus(resource, row), resource === 'articles' ? 404 : 200)
+    if (resource === 'articles') assert.equal(row.viewCount, 0)
+    cases.push(resource + ': create through UI with CSRF; initial public visibility')
+    for (const width of [1440, 768, 390, 320]) await screenshot(resource + '-list', width)
+
+    await click('[data-action="edit"]')
+    await waitFor(`!!document.querySelector('.admin-form')`)
+    await fill(
+      resource === 'articles' ? 'admin-field-content' : 'admin-field-name',
+      'Updated through browser',
+    )
+    await selectStatus(resource === 'articles' ? 1 : 0)
+    await saveForm()
+    assert.equal(await publicStatus(resource, row), resource === 'articles' ? 200 : 404)
+    const updated = await evaluate(
+      `(async () => (await (await fetch('/api/admin/${resource}/${row.id}')).json()).data)()`,
+    )
+    assert.equal(updated[resource === 'articles' ? 'content' : 'name'], 'Updated through browser')
+    assert.equal(await evaluate('window.articleExecuted === true'), false)
+    cases.push(resource + ': edit and status change updates public API')
+    await reload()
+    await waitFor(`!!document.querySelector('[data-action="edit"]')`)
+    cases.push(resource + ': session survives management page reload')
+    if (resource !== 'articles') {
+      await click('[data-action="edit"]')
+      await waitFor(`!!document.querySelector('.admin-form')`)
+      await selectStatus(1)
+      await saveForm()
+    }
+    await click('[data-action="delete"]')
+    await waitFor(`!!document.querySelector('.el-message-box')`)
+    await evaluate(
+      `[...document.querySelectorAll('.el-message-box button')].find(b => b.textContent.trim() === '取消').click()`,
+    )
+    await waitFor(
+      `!document.querySelector('.el-message-box') && document.querySelector('.admin-resource')?.getAttribute('aria-busy') === 'false'`,
+    )
+    assert.equal(await publicStatus(resource, row), 200)
+    await click('[data-action="delete"]')
+    await waitFor(`!!document.querySelector('.el-message-box')`)
+    await evaluate(
+      `[...document.querySelectorAll('.el-message-box button')].find(b => b.textContent.trim() === '删除').click()`,
+    )
+    await waitFor(
+      `!document.querySelector('[data-action="edit"]') && document.querySelector('tbody')?.textContent.includes('暂无数据')`,
+    )
+    assert.equal(await publicStatus(resource, row), 404)
+    assert.equal(
+      await evaluate(`(async () => (await fetch('/api/admin/${resource}/${row.id}')).status)()`),
+      404,
+    )
+    cases.push(
+      resource + ': cancel delete preserves data; confirm deletes and both details return 404',
+    )
+  }
+  await open('/admin')
+  await waitFor(
+    `location.pathname === '/admin' && document.body.innerText.includes('欢迎，浏览器测试管理员')`,
+  )
   await evaluate(`document.querySelector('button').click()`)
   await waitFor(
     `location.pathname === '/admin/login' && !!document.querySelector('#admin-password')`,
@@ -167,6 +298,13 @@ try {
     `location.pathname === '/admin/login' && !!document.querySelector('#admin-password')`,
   )
   cases.push('admin after logout requires login again')
+  for (const resource of ['windows', 'tools', 'articles']) {
+    await open('/admin/' + resource)
+    await waitFor(
+      `location.pathname === '/admin/login' && !!document.querySelector('#admin-password')`,
+    )
+  }
+  cases.push('all management routes require login after logout')
   await submit(' browser-test-only passphrase ')
   await waitFor(
     `location.pathname === '/admin' && document.body.innerText.includes('欢迎，浏览器测试管理员')`,
@@ -174,7 +312,7 @@ try {
   // Simulate expiry by removing the browser cookie; the next protected API reports 401.
   await cdp('Network.clearBrowserCookies')
   await evaluate(
-    `(async () => { const api = await import('/src/api/adminAuth.js'); try { await api.getCurrentAdmin() } catch { /* expected 401 */ } })()`,
+    `(async () => { const api = await import('/src/api/adminWindows.js'); try { await api.list() } catch { /* expected 401 */ } })()`,
   )
   await waitFor(
     `location.pathname === '/admin/login' && document.body.innerText.includes('登录状态已失效')`,
@@ -187,7 +325,7 @@ try {
   cases.push('public APIs and 404 remain anonymous')
   assert.deepEqual(errors, [])
   await writeFile(
-    `${cache}/phase8-browser-results.json`,
+    `${cache}/phase9-browser-results.json`,
     JSON.stringify(
       { cases, errors, database: 'H2 test only', responsiveWidths: [1440, 768, 390, 320] },
       null,
