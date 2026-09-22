@@ -5,6 +5,9 @@ const request = axios.create({ baseURL: '/api', timeout: 10000 })
 
 // Only known public API messages reach the UI; never forward raw server errors.
 const publicMessages = {
+  'Tool slug already exists': '工具 slug 已存在，请使用其他 slug。',
+  'Article slug already exists': '文章 slug 已存在，请使用其他 slug。',
+  'Resource already exists': '资源已存在，请检查 slug 是否重复。',
   'Windows resource not found': '未找到该 Windows 资源，可能已下架。',
   'Tool resource not found': '未找到该工具，可能尚未开放。',
   'Article resource not found': '未找到该文章，可能已下架。',

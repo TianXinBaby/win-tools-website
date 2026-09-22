@@ -14,6 +14,24 @@ export const routes = [
     meta: { requiresAdmin: true, adminArea: true },
     children: [
       {
+        path: 'windows',
+        name: 'admin-windows',
+        component: () => import('../views/admin/AdminWindowsView.vue'),
+        meta: { title: 'Windows 管理' },
+      },
+      {
+        path: 'tools',
+        name: 'admin-tools',
+        component: () => import('../views/admin/AdminToolsView.vue'),
+        meta: { title: '工具管理' },
+      },
+      {
+        path: 'articles',
+        name: 'admin-articles',
+        component: () => import('../views/admin/AdminArticlesView.vue'),
+        meta: { title: '文章管理' },
+      },
+      {
         path: '',
         name: 'admin-dashboard',
         component: () => import('../views/admin/AdminDashboardView.vue'),

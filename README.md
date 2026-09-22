@@ -2,11 +2,11 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第八阶段：管理员认证与后台基础框架**，保留前七阶段的功能和后端 API。
+当前已实现**第九阶段：Windows / Tool / Article 后台管理 CRUD**，保留前八阶段的功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、图片压缩、图片尺寸调整、图片格式转换九个浏览器本地工具。
-已开放管理员登录与后台 Dashboard。Windows / Tool / Article 后台管理 CRUD 当前阶段未实现，属于阶段 9。
+已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
 
 ## 当前技术栈
 
@@ -48,14 +48,14 @@ win-tools-website/
 ├── frontend/
 │   ├── public/favicon.svg
 │   ├── src/
-│   │   ├── api/（windows.js、tools.js、articles.js、adminAuth.js）
+│   │   ├── api/（公开资源、adminAuth.js、adminRequest.js、三类 admin 资源 API）
 │   │   ├── assets/main.css
 │   │   ├── components/（请求状态、Windows / Tool / Article 卡片）
 │   │   ├── composables/useResource.js
 │   │   ├── layouts/（MainLayout.vue、AdminLayout.vue）
 │   │   ├── router/（index.js、adminGuard.js）
 │   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态）
-│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面、admin/ 登录与 Dashboard）
+│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面、admin/ 登录、Dashboard 与内容管理）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -174,6 +174,11 @@ PowerShell 统一使用 `npm.cmd`，避免 `npm.ps1` 被 ExecutionPolicy 阻止�
 | `/tools/:slug` | 未实现工具的通用介绍，继续提示尚未开放 |
 | `/articles` | 文章标题、摘要、封面、分类、浏览量、发布时间；不展示正文 |
 | `/articles/:id` | 文章纯文本正文、摘要、封面及发布时间 / 更新时间等信息 |
+| `/admin/login` | 管理员登录 |
+| `/admin` | 管理员 Dashboard 和内容管理导航 |
+| `/admin/windows` | Windows 管理：列表、新增、编辑、单条删除 |
+| `/admin/tools` | 工具目录管理：列表、新增、编辑、单条删除 |
+| `/admin/articles` | 文章管理：草稿 / 发布、普通文本正文编辑、单条删除 |
 | 其他路径 | 404 页面，提供返回首页入口 |
 
 顶部导航、主内容和 Footer 由 `MainLayout` 统一提供；CSS Grid / Flexbox 适配桌面、平板、手机，
@@ -269,7 +274,7 @@ Vitest 不需要 MySQL，不连接真实 API；管理员 Chrome 验证连接隔�
 真实 MySQL 联调需要在后端进程环境提供 `DB_PASSWORD`，并先手工初始化数据库。
 访问首页及三个列表，从实际数据进入详情；检查浏览器 Network 中 `/api/windows`、`/api/tools`、
 `/api/articles` 均返回统一 JSON，并检查不存在资源的 404 状态。
-当前阶段执行环境未提供 `DB_PASSWORD`，未使用真实 MySQL 管理员账户完成登录实机验证。
+当前阶段执行环境未提供数据库凭据，未使用真实 MySQL 完成后台 CRUD 实机验证。
 后端自动认证测试使用 H2；前端 Vitest 使用模拟响应，Chrome 联调使用隔离 H2 测试管理员。
 这些测试不能据此证明真实 MySQL 已连通。
 
@@ -328,12 +333,74 @@ URL 防火墙仅为既有的精确 `GET /api/tools/%25`（字面 `%` slug）保�
 `/admin/login` 提供用户名、密码、loading 和安全错误提示；`/admin` 显示基础欢迎信息和退出操作。
 进入后台或登录页由路由守卫调用 `/me` 检查 Session，刷新同样从服务端恢复，不信任内存或持久化 boolean。
 后台请求返回 401 时清理运行时状态、跳转登录并提示重新登录；网络失败不放行后台，不无限重试。
-退出先完成后端 logout，成功后才清理状态和跳转。Dashboard 没有假统计、CRUD 页面或统计 API。
+退出先完成后端 logout，成功后才清理状态和跳转。Dashboard 提供内容管理入口，不展示假统计。
 
 后端测试覆盖真实 CSRF 往返、登录 / me / logout、Session ID 轮换、旧 CSRF 失效、Cookie 配置、错误响应和公开 API 回归。
 前端测试覆盖表单、loading、CSRF 顺序与请求头、服务端认证恢复、路由守卫、失效跳转和退出。
 真实 Chrome 通过 Vite proxy 验证隔离 H2 账户的登录、刷新、退出、HttpOnly / SameSite Cookie、无持久化存储及四档屏宽。
 复现命令见 [frontend/README.md](frontend/README.md)。截图和报告仅输出到被忽略的 `.cache/`。
+
+## 第九阶段：后台内容管理 CRUD
+
+三个管理页共用轻量表单和列表组件，提供加载状态、错误提示、保存中禁用、成功刷新和
+`ElMessageBox.confirm` 删除确认。删除失败保留原列表。文章正文使用普通 textarea，不执行 HTML，
+不使用 `v-html`、Markdown 或富文本编辑器。工具管理只维护目录元数据，不生成新的工具实现。
+
+### 管理 API
+
+全部位于既有 Spring Security 的 `/api/admin/**` 保护范围，需要 `ROLE_ADMIN`。
+沿用 BCrypt、服务端 Session 和 HttpOnly Cookie，不使用 JWT。
+POST / PUT / DELETE 必须携带 CSRF；前端每次写入先 GET `/api/admin/auth/csrf`，
+使用返回的 headerName 和 token。不缓存 token、不自动重放写请求，403 显示错误后由用户重试。
+后台 API 401 清理内存认证状态并跳转登录。匿名 GET 返回 401；写请求有有效 CSRF 但未登录时
+返回 401，无有效 CSRF 时先返回 403；已认证但无管理员角色返回 403。
+
+| 资源 | 列表 | 详情 | 新增 | 更新 | 删除 |
+| --- | --- | --- | --- | --- | --- |
+| Windows | GET `/api/admin/windows` | GET `/api/admin/windows/{id}` | POST `/api/admin/windows` | PUT `/api/admin/windows/{id}` | DELETE `/api/admin/windows/{id}` |
+| Tool | GET `/api/admin/tools` | GET `/api/admin/tools/{id}` | POST `/api/admin/tools` | PUT `/api/admin/tools/{id}` | DELETE `/api/admin/tools/{id}` |
+| Article | GET `/api/admin/articles` | GET `/api/admin/articles/{id}` | POST `/api/admin/articles` | PUT `/api/admin/articles/{id}` | DELETE `/api/admin/articles/{id}` |
+
+独立 Admin Controller → Admin Service → 既有 Mapper；请求使用 SaveRequest DTO，
+响应使用 Admin VO，均复用 `ApiResponse`，不直接暴露 Entity。成功返回 200，删除的 data 为 null。
+详情、更新和删除不存在的资源返回 404；非法字段返回统一 JSON 400；
+Tool / Article slug 重复返回友好 409，数据库唯一约束兜底并发冲突，同样不泄露 SQL。
+
+### 字段与边界
+
+- Windows：name（100）、version（50）、edition（100）、architecture（20）必填；
+  releaseDate 为可空 ISO 日期；description 最多 10000 字符；sha256 为空或 64 位十六进制。
+  officialDownloadUrl 最多 1000 字符，可空；非空必须为 HTTPS、microsoft.com 或其子域名，
+  不允许用户名 / 密码或非标准端口。imageUrl 可空，最多 1000 字符，只保存 HTTPS URL。
+- Tool：name / slug 最多 100 字符且必填，icon 最多 255、description 最多 10000、
+  category 最多 100；path 必填且最多 255，必须为 `/tools/...`，各路径段仅小写字母、
+  数字和分隔用连字符，拒绝外部 URL、路径穿越、查询串及编码路径。
+- Article：title 必填且最多 255，slug 必填且最多 200，summary 最多 1000，
+  **content 最多 100000 字符**，category 最多 100，coverImage 可空且最多 1000，仅 HTTPS URL。
+  viewCount 仅显示，创建固定为 0，更新 SQL 不写此字段；id 和时间戳也不属于 SaveRequest。
+- 两类 slug 仅允许小写字母、数字和中间连字符；更新允许保留自身 slug。
+  所有 status 必填且仅 0 / 1；Windows / Tool 的 sortOrder 必填，范围 0～1000000。
+  前端提示规则，后端通过 `@Valid`、`@NotBlank`、`@NotNull`、`@Size`、
+  `@Pattern`、`@Min`、`@Max` 和 HTTPS URL 校验强制执行。
+
+后台列表包含 disabled / draft：Windows / Tool 按 sort_order ASC、id ASC；
+Article 按 created_at DESC、id DESC。公开 API 仍只查询 status=1，状态修改或删除立即生效。
+PUT 提交完整可编辑字段，可空字段传 null 可以清除旧值。事务覆盖每次单条写操作；
+created_at / updated_at 继续由数据库默认值和 ON UPDATE 管理。
+现有 schema 无外键依赖和软删除字段，本阶段使用单条物理删除，没有修改正式表结构。
+
+本阶段不包含图片 / 文件上传、普通用户系统、管理员账户管理、复杂角色权限、分页、
+搜索、批量操作、对象存储、富文本或 Markdown 渲染。
+
+### 验证范围
+
+H2 MySQL mode + MockMvc 覆盖三类 CRUD、所有权限 / CSRF 边界、校验、唯一冲突、
+可空字段清除、只读字段保护、公开状态联动和删除后的 404。
+Vitest 覆盖真实组件交互、请求 payload、删除确认、loading、错误提示、CSRF 顺序和认证回归。
+`node e2e/admin.browser.mjs` 在隔离 H2 和真实无头 Chrome 中验证三个管理页 CRUD、
+文章草稿发布、正文编辑、Session 刷新恢复、退出、401 跳转及缺少 CSRF 的 403。
+检查 1440 / 768 / 390 / 320 px 宽度，截图和报告保存在忽略目录 `.cache/`。
+未使用真实 MySQL 完成后台 CRUD 实机验证；H2 验证不能替代生产 MySQL 联调。
 
 ## Database
 
@@ -436,7 +503,7 @@ cd D:\study\win-tools-website\backend
 | `admin_user` | `username` 唯一，`password VARCHAR(255) NOT NULL` 仅供未来安全密码 Hash 存储，无初始账户 |
 
 Windows、工具和管理员的 `status` 约定为 1=enabled、0=disabled，默认 1；
-文章约定为 1=published、0=draft，默认 0。当前数据库未增加状态枚举 CHECK，业务校验在后续阶段实现。
+文章约定为 1=published、0=draft，默认 0。数据库未增加状态枚举 CHECK，后台写入在 DTO 中强制校验 0 / 1。
 `sort_order` 默认 0；Windows 公开列表按 `sort_order ASC, release_date DESC, id ASC` 排序，
 相同 sort_order 下未填写发布日期的数据排在有日期的数据之后。
 默认排序规则不区分大小写和重音，因此 `slug` / `username` 唯一约束也遵循此规则。
@@ -462,12 +529,12 @@ Entity 仅生成 Getter/Setter，避免自动生成包含密码字段的 `toStri
 
 Windows 数据来自 `windows_version`，只公开 `status=1` 的资源；其他状态均不可通过列表或详情读取。
 列表排序为 `sort_order ASC`、`release_date DESC`、`id ASC`。
-下载链接只允许 Microsoft 官方来源，由数据维护者在录入数据库时核验；本阶段没有写入接口或链接校验接口。
+下载链接只允许 Microsoft 官方来源，后台写入由服务端校验 HTTPS 和 Microsoft 域名；手工 SQL 仍需维护者核验。
 公开接口使用 VO，不返回 `status`、`sortOrder`、`createdAt`、`updatedAt`。
 列表字段为 `id`、`name`、`version`、`edition`、`architecture`、`releaseDate`、`description`、`imageUrl`；
 详情在此基础上增加 `officialDownloadUrl` 和 `sha256`。
 零和负数 ID 返回 404；非整数或超出 Java Long 范围的 ID 返回 400，均使用统一 JSON。
-公开资源接口的 POST / PUT / PATCH / DELETE 返回 405；本阶段没有分页、搜索、复杂筛选或后台内容管理 API。
+公开资源接口的 POST / PUT / PATCH / DELETE 返回 405；后台写入使用独立管理 API，没有分页、搜索或复杂筛选。
 
 ### Tool 与 Article 查询规则
 
@@ -603,4 +670,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 9：Windows / Tool / Article 后台管理 CRUD。
+下一阶段仅建议：阶段 10：质量、安全强化与腾讯云部署准备。

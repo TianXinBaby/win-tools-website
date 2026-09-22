@@ -1,6 +1,7 @@
 package com.xiaoc.backend.exception;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -45,9 +46,24 @@ class GlobalExceptionHandlerTests {
     @RestController
     static class FailingController {
 
+        @GetMapping("/api/test/duplicate")
+        public void duplicate() {
+            throw new DuplicateKeyException("private SQL constraint detail");
+        }
+
         @GetMapping("/api/test/failure")
         public void fail() {
             throw new IllegalStateException("private failure detail");
         }
+    }
+
+    @Test
+    void concurrentUniqueConstraintFailureReturnsSafe409() throws Exception {
+        mockMvc.perform(get("/api/test/duplicate"))
+                .andExpect(status().isConflict())
+                .andExpect(content().json("""
+                        {"code":409,"message":"Resource already exists","data":null}
+                        """))
+                .andExpect(content().string(not(containsString("SQL"))));
     }
 }

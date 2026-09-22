@@ -49,7 +49,7 @@ node e2e/media.browser.mjs
 - 退出先获取新 CSRF token，再 POST logout；后台 API 401 清理内存状态并跳登录。
 
 使用同源 `/api` proxy 的 HttpOnly Session Cookie，不使用 JWT，不读取 Session ID，不持久化认证状态或 CSRF token。
-无默认管理员。Windows / Tool / Article CRUD 当前阶段未实现，属于阶段 9。
+无默认管理员。阶段 9 已开放 Windows / Tool / Article 管理 CRUD。
 后端密码与生产 HTTPS / Secure Cookie 说明见根 README。
 
 认证的真实 Chrome 测试需要隔离 H2 服务。在项目根目录另开终端执行：
@@ -69,8 +69,23 @@ npm.cmd run dev
 node e2e/admin.browser.mjs
 ```
 
-浏览器测试验证真实 Session / CSRF 登录、刷新恢复、退出、失效跳转、Cookie 安全属性、公开 API 和四档屏宽。
+浏览器测试验证真实 Session / CSRF 登录、刷新恢复、退出、失效跳转、Cookie 安全属性、公开 API 和四档屏宽，
+并操作三个管理页的新增、编辑、状态变更、取消删除及确认删除。每次浏览器验收从新启动的隔离 H2 服务开始。
 只记录结果和截图，不输出密码、Cookie 值或 CSRF token。测试结束后停止上述临时服务。
 这不是使用真实 MySQL 管理员账户完成的验证。
 
 PowerShell 使用 `npm.cmd`，不修改 ExecutionPolicy。
+
+## 阶段 9：后台内容管理
+
+- `/admin/windows`：Windows 列表和编辑弹窗，官方 URL 提示仅 Microsoft HTTPS，状态和排序可编辑。
+- `/admin/tools`：工具目录 CRUD，slug 使用小写字母 / 数字 / 连字符，path 必须为站内 `/tools/...`。
+- `/admin/articles`：草稿 / 发布状态，摘要和普通 textarea 正文（最多 100000 字符）；浏览量只读。
+
+三个路由继承后台守卫，导航包含 Dashboard、Windows、工具、文章及退出。
+独立 admin API 模块复用 request.js；写请求通过 adminRequest.js 每次先取 CSRF，不自动重试写入。
+错误沿用安全消息映射，401 继续清理状态并跳登录；409 显示 slug 冲突，403 提示重新操作。
+共用 AdminResourcePanel 和 AdminContentForm，保存期间禁用提交和关闭，成功关闭弹窗并刷新列表；
+删除使用 Element Plus 确认框，取消或失败保留数据。表格在窄屏内部滚动。
+状态修改及删除立即影响公开 API；工具目录编辑不会创建新的工具实现。
+仍不包含分页、搜索、批量操作、图片上传、富文本或普通用户系统。

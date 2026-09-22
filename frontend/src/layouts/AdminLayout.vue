@@ -30,7 +30,12 @@ async function logout() {
   <header class="site-header">
     <div class="container admin-header">
       <RouterLink to="/admin" class="brand">Win Tools 管理后台</RouterLink>
-      <nav aria-label="后台导航"><RouterLink to="/admin">Dashboard</RouterLink></nav>
+      <nav aria-label="后台导航">
+        <RouterLink to="/admin">Dashboard</RouterLink>
+        <RouterLink to="/admin/windows">Windows 管理</RouterLink>
+        <RouterLink to="/admin/tools">工具管理</RouterLink>
+        <RouterLink to="/admin/articles">文章管理</RouterLink>
+      </nav>
       <span>当前管理员：{{ name }}</span>
       <el-button :loading="loading" :disabled="loading" @click="logout">退出</el-button>
     </div>
@@ -51,6 +56,11 @@ async function logout() {
 }
 .admin-header .brand {
   margin-right: auto;
+}
+.admin-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 .admin-header span {
   overflow-wrap: anywhere;
