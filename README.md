@@ -2,11 +2,40 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第九阶段：Windows / Tool / Article 后台管理 CRUD**，保留前八阶段的功能和后端 API。
+当前已实现**第十阶段：质量、安全强化与腾讯云部署准备**，保留前九阶段的功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、图片压缩、图片尺寸调整、图片格式转换九个浏览器本地工具。
 已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## 第十阶段：生产配置与部署准备
+
+```text
+Internet → HTTPS 443 → Nginx ┬→ Vue dist 静态文件
+                            └→ /api → Spring Boot 127.0.0.1:8080 → MySQL 8
+```
+
+详细步骤见 [腾讯云 Linux 部署手册](docs/deployment/tencent-cloud.md)。
+示例位于 `deploy/env/`、`deploy/nginx/`、`deploy/systemd/`；本阶段未执行真实腾讯云部署。
+
+- `application-prod.yml` 通过 `SPRING_PROFILES_ACTIVE=prod` 激活；数据库读取 DB_HOST、DB_PORT、
+  DB_NAME、DB_USERNAME、DB_PASSWORD，用户名和密码没有默认值；启动不自动初始化数据库。
+- 生产使用 `SESSION_COOKIE_SECURE=true`、HttpOnly、SameSite=Lax、30m Session。
+  保持 CSRF、Session 轮换和同源 API，不放宽 CORS；INFO 日志不输出 SQL 或请求正文。
+- Nginx 统一设置生产 CSP 和其他安全响应头、80→443、TLS 1.2/1.3、SPA fallback；
+  后端仅监听回环地址，通过 framework 识别受信代理转发的 HTTPS。
+- 新增公开 `GET /api/health`，精确返回
+  `{"code":200,"message":"success","data":{"status":"UP"}}`，仅表明进程存活，不检查数据库或暴露系统信息。
+- 应用由非 root 的 win-tools 用户通过 systemd 运行 `java -jar`；前端只部署 dist。
+  env 权限 600，禁止 chmod 777；安全组不向公网开放 8080/3306。
+- 无默认管理员；离线 BCrypt 辅助类仅在 test scope，执行方式见部署手册。
+  当前未实现登录失败限流，部署前须审核管理入口来源限制。
+- 真实 `.env`、`*.env`、私钥、证书、target/dist 不提交；示例文件仅含占位符。
+  生产不默认导入 seed-dev.sql，发布前备份数据库与上一版 Jar/dist。
+
+新增自动测试覆盖 prod 配置绑定、真实 Servlet Cookie、转发 HTTPS、安全响应头、无敏感信息的异常日志和 JSON、
+health、容器错误及离线 Hash。Chrome 生产 CSP 验证方法见 [前端 README](frontend/README.md)。
+真实 MySQL 与真实 Linux/Nginx/systemd/TLS 部署验收仍需授权环境，不能用 H2 测试替代。
 
 ## 当前技术栈
 
@@ -45,6 +74,8 @@ win-tools-website/
 ├── .gitattributes
 ├── .gitignore
 ├── README.md
+├── deploy/（env、Nginx、systemd 的 example 配置）
+├── docs/deployment/tencent-cloud.md
 ├── frontend/
 │   ├── public/favicon.svg
 │   ├── src/
@@ -87,7 +118,7 @@ win-tools-website/
         │   │   ├── service/impl/（对应的三个 Service 实现）
         │   │   ├── vo/（WindowsVersionListVO、WindowsVersionDetailVO、ToolVO、ArticleListVO、ArticleDetailVO、AdminUserVO、AdminCsrfVO）
         │   │   └── exception/（GlobalExceptionHandler、ResourceNotFoundException）
-        │   └── resources/application.yml
+        │   └── resources/（application.yml、application-prod.yml）
         └── test/
             ├── java/com/xiaoc/backend/
             │   ├── BackendApplicationTests.java
@@ -291,7 +322,7 @@ Vitest 不需要 MySQL，不连接真实 API；管理员 Chrome 验证连接隔�
 用户名最多 100 字符并 trim；密码最多 72 字符，不 trim，也不增加最短长度规则。
 
 **项目不会创建默认管理员。** 正式 SQL、开发 seed 和应用启动流程都不创建管理员账户。
-真实数据库没有管理员是允许状态；管理员初始化属于未来明确的运维流程。
+真实数据库没有管理员是允许状态；管理员初始化必须按部署文档的离线运维流程显式执行。
 当前没有匿名注册 / 创建管理员接口或公开密码 Hash API，也不在配置和文档中提供真实密码。
 测试凭据仅存在于测试源码和明确的浏览器 test fixture 中，不进入正式 Jar 或 SQL。
 
@@ -618,7 +649,7 @@ Invoke-RestMethod http://localhost:8080/api/hello
 }
 ```
 
-异常堆栈仅记录在后端日志，不返回浏览器。Spring MVC 的常见请求异常保留对应 HTTP 状态（如 404、405），并使用统一 JSON 响应。
+未处理异常只记录异常类型，不记录可能含敏感内容的消息和堆栈，也不返回浏览器。Spring MVC 的常见请求异常保留对应 HTTP 状态（如 404、405），并使用统一 JSON 响应。
 异常测试使用的故障接口只存在于测试源码中，不会包含在运行包里。
 
 ## 测试与构建
@@ -653,7 +684,7 @@ Article 测试验证列表不返回正文、详情返回正文、无符号 INT �
 `view_count` 用 BIGINT + CHECK 模拟 MySQL 无符号 INT 的完整范围。
 H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行为正确，仍需按 Database 章节做实机验证。
 正式 Jar 不包含 H2 或测试配置。
-405 和异常测试会主动触发错误路径，日志中的对应 WARN、ERROR 和堆栈是预期行为，应以 Maven 测试结果为准。
+405 和异常测试会主动触发错误路径，日志中的对应 WARN、ERROR 是预期行为，应以 Maven 测试结果为准。
 测试使用 Mockito 的 subclass 引擎，避免当前无需使用的内联插桩触发 JVM 类共享警告；该配置只作用于测试，不支持 Mock final 类或方法。参考 [Mockito 官方说明](https://github.com/mockito/mockito/blob/v5.17.0/mockito-core/src/main/java/org/mockito/MockMakers.java)。
 
 `verify` 会执行测试并构建可运行 Jar：
@@ -670,4 +701,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 10：质量、安全强化与腾讯云部署准备。
+下一阶段仅建议：阶段 11：腾讯云真实上线与域名 HTTPS 配置，须明确授权后再操作真实服务器。

@@ -76,6 +76,24 @@ node e2e/admin.browser.mjs
 
 PowerShell 使用 `npm.cmd`，不修改 ExecutionPolicy。
 
+## 阶段 10：生产构建与 CSP 验证
+
+`npm.cmd run build` 生成 `dist/`，默认不生成 source map；仅部署 dist 内容至 Nginx Web root。
+API 保持同源 `/api`，由 Nginx 反代；服务器不运行 `npm run dev`。
+配置及 HTTPS、权限、备份和回滚步骤见 [腾讯云部署手册](../docs/deployment/tencent-cloud.md)。
+
+先按上文启动一个全新的隔离 H2 `AdminBrowserApplication`（8080），完成 build 后在 frontend 执行：
+
+```powershell
+node e2e/production.browser.mjs
+```
+
+脚本以随机本地端口提供 dist，直接读取 Nginx 示例中的 CSP，通过 Chrome 重跑后台 CRUD、
+Element Plus 弹窗、二维码和图片工具测试，并检查安全策略错误。无需启动 Vite。
+现有浏览器脚本也支持进程环境变量 `BASE_URL` 指定测试地址；默认仍使用开发地址。
+本地 HTTP 使用测试 profile 的非 Secure Cookie；prod Secure Cookie 由后端真实容器测试覆盖。
+这项验证不代表已在真实 Nginx、HTTPS 或 MySQL 环境通过。
+
 ## 阶段 9：后台内容管理
 
 - `/admin/windows`：Windows 列表和编辑弹窗，官方 URL 提示仅 Microsoft HTTPS，状态和排序可编辑。

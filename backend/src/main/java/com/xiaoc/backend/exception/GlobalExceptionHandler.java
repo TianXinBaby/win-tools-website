@@ -47,7 +47,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
-        log.error("Unhandled request exception", exception);
+        // Exception messages/causes can contain SQL, credentials or submitted content.
+        // Retain the exception type for diagnosis without logging payloads or stack traces.
+        log.error("Unhandled request exception [{}]", exception.getClass().getSimpleName());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(500, "Internal server error"));
     }
