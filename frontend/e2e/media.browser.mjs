@@ -67,6 +67,8 @@ try {
       pending.delete(message.id)
     }
     if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails)
+    if (message.method === 'Log.entryAdded' && message.params.entry.source === 'security')
+      errors.push('Browser security policy violation')
     if (
       message.method === 'Runtime.consoleAPICalled' &&
       ['error', 'warning'].includes(message.params.type)
@@ -108,7 +110,9 @@ try {
     throw new Error(`Wait failed: ${expression}`)
   }
   async function open(slug) {
-    await cdp('Page.navigate', { url: `http://127.0.0.1:5173/tools/${slug}` })
+    await cdp('Page.navigate', {
+      url: `${env.BASE_URL || 'http://127.0.0.1:5173'}/tools/${slug}`,
+    })
     await waitFor(
       `!!document.querySelector('${slug === 'qrcode' ? '#qrcode-input' : '#image-file'}')`,
     )
@@ -205,6 +209,7 @@ try {
     assert.equal(await evaluate(`document.querySelectorAll('.media-preview img').length`), 0)
   }
   await cdp('Runtime.enable')
+  await cdp('Log.enable')
   await cdp('Page.enable')
   await cdp('Network.enable')
   await cdp('Browser.setDownloadBehavior', {

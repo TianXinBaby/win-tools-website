@@ -1,0 +1,23 @@
+[Unit]
+Description=Win Tools Spring Boot backend
+After=network.target
+
+[Service]
+Type=simple
+User=win-tools
+Group=win-tools
+WorkingDirectory=/opt/win-tools/backend
+EnvironmentFile=/etc/win-tools/win-tools.env
+ExecStart=/usr/bin/java -jar /opt/win-tools/backend/backend.jar
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

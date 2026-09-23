@@ -13,6 +13,14 @@ dist/
 .env
 .env.*
 !.env.example
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.crt
+*.cer
 
 # Logs and temporary files
 *.log

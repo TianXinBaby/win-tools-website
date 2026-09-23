@@ -1,6 +1,9 @@
 package com.xiaoc.backend.exception;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -15,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(GlobalExceptionHandlerTests.FailingController.class)
 @Import({GlobalExceptionHandlerTests.FailingController.class, SecurityConfig.class})
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTests {
 
     @MockitoBean
@@ -31,7 +36,7 @@ class GlobalExceptionHandlerTests {
     private MockMvc mockMvc;
 
     @Test
-    void unexpectedExceptionReturnsSafeJson() throws Exception {
+    void unexpectedExceptionReturnsSafeJson(CapturedOutput output) throws Exception {
         mockMvc.perform(get("/api/test/failure"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -41,6 +46,8 @@ class GlobalExceptionHandlerTests {
                 .andExpect(jsonPath("$.trace").doesNotExist())
                 .andExpect(content().string(not(containsString("private failure detail"))))
                 .andExpect(content().string(not(containsString("IllegalStateException"))));
+        assertThat(output.getAll()).contains("Unhandled request exception")
+                .doesNotContain("private failure detail", "test-sensitive-value", "jdbc:mysql:");
     }
 
     @RestController
@@ -53,7 +60,7 @@ class GlobalExceptionHandlerTests {
 
         @GetMapping("/api/test/failure")
         public void fail() {
-            throw new IllegalStateException("private failure detail");
+            throw new IllegalStateException("private failure detail password=test-sensitive-value jdbc:mysql://internal");
         }
     }
 

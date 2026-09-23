@@ -59,6 +59,8 @@ try {
       pending.delete(message.id)
     }
     if (message.method === 'Runtime.exceptionThrown') errors.push('Uncaught browser exception')
+    if (message.method === 'Log.entryAdded' && message.params.entry.source === 'security')
+      errors.push('Browser security policy violation')
   })
   function cdp(method, params = {}) {
     const id = ++nextId
@@ -88,10 +90,10 @@ try {
       if (await evaluate(expression)) return
       await pause(75)
     }
-    throw new Error('Browser condition timed out')
+    throw new Error(`Browser condition timed out (${errors.length} browser errors)`)
   }
   async function open(path) {
-    await cdp('Page.navigate', { url: `http://localhost:5173${path}` })
+    await cdp('Page.navigate', { url: `${env.BASE_URL || 'http://localhost:5173'}${path}` })
   }
   async function fill(id, value) {
     await evaluate(
@@ -125,6 +127,7 @@ try {
     await writeFile(`${cache}/phase9-${label}-${width}.png`, Buffer.from(shot.data, 'base64'))
   }
   await cdp('Runtime.enable')
+  await cdp('Log.enable')
   await cdp('Network.enable')
   await open('/admin')
   await waitFor(
@@ -310,9 +313,11 @@ try {
     `location.pathname === '/admin' && document.body.innerText.includes('欢迎，浏览器测试管理员')`,
   )
   // Simulate expiry by removing the browser cookie; the next protected API reports 401.
+  await open('/admin/windows')
+  await waitFor(`document.querySelector('.admin-resource')?.getAttribute('aria-busy') === 'false'`)
   await cdp('Network.clearBrowserCookies')
   await evaluate(
-    `(async () => { const api = await import('/src/api/adminWindows.js'); try { await api.list() } catch { /* expected 401 */ } })()`,
+    `[...document.querySelectorAll('.admin-toolbar button')].find(button => button.textContent.trim() === '刷新').click()`,
   )
   await waitFor(
     `location.pathname === '/admin/login' && document.body.innerText.includes('登录状态已失效')`,
