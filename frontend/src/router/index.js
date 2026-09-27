@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { installAdminGuard } from './adminGuard'
+import { isToolAvailable } from '../utils/tools/registry'
+import { recordRecentTool } from '../utils/toolPreferences'
 
 export const routes = [
   {
@@ -62,6 +64,12 @@ export const routes = [
     name: 'tools',
     component: () => import('../views/ToolsView.vue'),
     meta: { title: '在线工具' },
+  },
+  {
+    path: '/favorites',
+    name: 'favorites',
+    component: () => import('../views/FavoritesView.vue'),
+    meta: { title: '我的收藏' },
   },
   {
     path: '/tools/json',
@@ -224,5 +232,14 @@ const router = createRouter({
 router.afterEach((to) => {
   document.title = `${to.meta.title} · Win Tools`
 })
+export function installToolHistory(targetRouter) {
+  return targetRouter.afterEach((to, from, failure) => {
+    if (failure || to.fullPath === from.fullPath || typeof to.name !== 'string') return
+    if (!to.name.startsWith('tool-')) return
+    const slug = to.name.slice('tool-'.length)
+    if (isToolAvailable(slug)) recordRecentTool(slug)
+  })
+}
+installToolHistory(router)
 installAdminGuard(router)
 export default router

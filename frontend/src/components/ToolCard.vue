@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { isToolAvailable } from '../utils/tools/registry'
+import FavoriteButton from './FavoriteButton.vue'
 const props = defineProps({ item: { type: Object, required: true } })
 const router = useRouter()
 const available = computed(() => isToolAvailable(props.item.slug))
@@ -17,7 +18,10 @@ const destination = computed(() => {
 </script>
 <template>
   <article class="card resource-card">
-    <span class="resource-symbol tool-symbol">{{ item.icon || '{ }' }}</span>
+    <div class="tool-card-top">
+      <span class="resource-symbol tool-symbol">{{ item.icon || '{ }' }}</span>
+      <FavoriteButton :slug="item.slug" :name="item.name" />
+    </div>
     <h3>{{ item.name }}</h3>
     <ElTag class="category" type="info" effect="plain">{{ item.category || '通用工具' }}</ElTag>
     <p class="tool-availability">{{ available ? '已开放 · 浏览器本地运行' : '即将开放' }}</p>

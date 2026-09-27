@@ -20,6 +20,8 @@ npm.cmd audit
 ```
 
 `npm.cmd run format` 格式化代码；`npm.cmd run test:unit` 监听测试。
+Phase 11.12 在首页和 `/tools` 增加实时名称 / 描述搜索与分类过滤；首页展示固定顺序的热门工具、最近使用和分类导航。工具卡片的收藏按钮将工具 slug 保存到当前浏览器 `localStorage`，可在 `/favorites` 查看或取消。打开工具页面也会在本地记录最近 10 个 slug。上述偏好不上传服务器；清除站点数据后会消失。目录数据仍来自 `/api/tools`，未改变后端接口和数据库。
+
 已开放 JSON、UUID v4、时间戳、SHA-256、Base64，以及第七阶段四个媒体工具：
 
 - `/tools/qrcode`：文本 / URL 生成二维码并下载 PNG，使用 qrcode 1.5.4。

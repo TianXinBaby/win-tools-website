@@ -101,7 +101,7 @@ describe('页面及路由', () => {
     await flushPromises()
     expect(router.currentRoute.value.name).toBe(name)
     expect(wrapper.get('h1').text()).toContain(title)
-    expect(wrapper.findAll('nav a')).toHaveLength(4)
+    expect(wrapper.findAll('.main-nav a')).toHaveLength(5)
     expect(wrapper.find('footer').exists()).toBe(true)
   })
 

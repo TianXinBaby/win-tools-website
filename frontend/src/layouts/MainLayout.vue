@@ -5,6 +5,7 @@ const navigation = [
   { path: '/', title: '首页' },
   { path: '/windows', title: 'Windows 下载' },
   { path: '/tools', title: '在线工具' },
+  { path: '/favorites', title: '我的收藏' },
   { path: '/articles', title: '教程文章' },
 ]
 const isCurrent = (path) =>

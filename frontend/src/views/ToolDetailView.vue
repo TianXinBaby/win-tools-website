@@ -1,10 +1,15 @@
 <script setup>
+import { watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getToolDetail } from '../api/tools'
 import { useResource } from '../composables/useResource'
 import ResourceState from '../components/ResourceState.vue'
+import { recordRecentTool } from '../utils/toolPreferences'
 const route = useRoute()
 const { data, loading, error, reload } = useResource(getToolDetail, () => route.params.slug)
+watch(data, (tool) => {
+  if (tool?.slug === route.params.slug) recordRecentTool(tool.slug)
+})
 </script>
 <template>
   <RouterLink class="back-link" to="/tools">← 返回工具列表</RouterLink>

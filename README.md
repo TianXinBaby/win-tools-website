@@ -2,11 +2,20 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.11.4：高级互动工具**，保留原有功能和后端 API。
+当前已实现 **Phase 11.12：工具生态体验优化**，保留原有功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.12：工具生态体验优化
+
+- 首页和 `/tools` 支持按工具名称、描述实时搜索，并可按当前目录分类过滤；首页增加热门工具、最近使用和分类导航。
+- 热门工具按前端固定优先级展示当前 `/api/tools` 返回的工具，缺少优先项时用其余目录项补足；不使用统计服务。
+- 工具卡片可添加或取消收藏；`/favorites` 显示当前仍在公开目录中的收藏工具。
+- 打开工具页面会记录最近使用，按最近访问排序并保留最多 10 个；收藏和记录仅保存工具 slug 到当前浏览器的 `localStorage`。清除浏览器站点数据后记录会消失；不上传这两类记录。
+
+本阶段未增加依赖、数据库表或后端 API。实现和验证见 [阶段报告](PHASE_11.12_REPORT.md)。
 
 ## Phase 11.11.4：高级互动工具
 
@@ -108,12 +117,12 @@ win-tools-website/
 │   ├── src/
 │   │   ├── api/（公开资源、adminAuth.js、adminRequest.js、三类 admin 资源 API）
 │   │   ├── assets/main.css
-│   │   ├── components/（请求状态、Windows / Tool / Article 卡片）
+│   │   ├── components/（请求状态、资源卡片、工具搜索 / 收藏 / 热门展示）
 │   │   ├── composables/useResource.js
 │   │   ├── layouts/（MainLayout.vue、AdminLayout.vue）
 │   │   ├── router/（index.js、adminGuard.js）
-│   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态，tools/fun/ 娱乐工具逻辑）
-│   │   ├── views/（首页、列表、详情、404、tools/ 二十一个工具页面、admin/ 登录、Dashboard 与内容管理）
+│   │   ├── utils/（请求、工具发现与本地偏好、tools/ 工具核心逻辑和开放状态）
+│   │   ├── views/（首页、列表、收藏、详情、404、tools/ 二十一个工具页面、admin/ 管理页面）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -219,10 +228,11 @@ PowerShell 统一使用 `npm.cmd`，避免 `npm.ps1` 被 ExecutionPolicy 阻止�
 
 | 路由 | 页面作用 |
 | --- | --- |
-| `/` | Hero、热门 Windows、常用工具、最新文章；独立请求三个已有列表，各取前三项 |
+| `/` | Hero 搜索、热门工具、最近使用、分类导航、热门 Windows 和最新文章；复用三个已有列表 API |
 | `/windows` | 展示版本、版本名称、架构、发布日期、简介与详情入口 |
 | `/windows/:id` | Windows 详情、SHA-256、官方链接、可选图片 |
-| `/tools` | 从后端读取工具元数据，展示开放状态并优先使用有效的 `path` 进入工具 |
+| `/tools` | 从后端读取工具元数据，实时搜索名称 / 描述、分类过滤，并展示开放状态与收藏按钮 |
+| `/favorites` | 查看与取消当前浏览器收藏的公开工具 |
 | `/tools/json` | JSON 格式化、压缩、复制和清空 |
 | `/tools/uuid` | UUID v4 单个 / 批量生成，最多 100 个 |
 | `/tools/timestamp` | Unix 秒 / 毫秒与浏览器本地日期时间双向转换 |
