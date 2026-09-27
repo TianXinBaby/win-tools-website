@@ -2,19 +2,23 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.14.1：GitHub Actions CI**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
+当前已实现 **Phase 11.14.2：手工部署脚本**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.14.2：标准化部署
+
+`deploy/` 新增 Ubuntu 手工部署脚本：前后端分别构建与发布，发布前保存配套 Jar/静态文件快照，检查 HTTPS 首页、`/api/health` 和 systemd 状态，并可按快照回滚。脚本要求明确输入确认文字，保留失败现场，备份达到上限时停止新部署，不自动删除旧版。配置示例不含密码；部署环境和命令见 [部署脚本说明](deploy/README.md)，验证结论见 [Phase 11.14.2 报告](PHASE_11.14.2_REPORT.md)。生产服务器仍须由运维人员执行和验收。
 
 ## Phase 11.14.1：持续集成
 
 向 GitHub 推送任意分支，或创建、更新 Pull Request 时，会分别触发 [Frontend CI](https://github.com/TianXinBaby/win-tools-website/actions/workflows/frontend-ci.yml) 和 [Backend CI](https://github.com/TianXinBaby/win-tools-website/actions/workflows/backend-ci.yml)。在 Actions 页面可查看各自运行状态和失败步骤；仓库为私有仓库，查看页面需要仓库访问权限，因此未添加公开 badge。
 
 - 前端使用 Ubuntu、Node.js 24.20.0 和 `frontend/package-lock.json` 对应的 npm 缓存，依次运行 `npm install`、`npm test`、`npm run lint`、`npm run format:check`、`npm run build`。
-- 后端使用 Ubuntu、Temurin Java 18 和 Maven 缓存，在 `backend/` 运行 `./mvnw test`、`./mvnw verify`；`verify` 还会构建 Jar。现有 Wrapper 在 Git 中没有可执行位，CI 会先为运行副本执行 `chmod +x ./mvnw`。
-- 任一步失败，所属 workflow 即失败。要让失败检查阻止合并，还需在目标分支（通常为 `main`）的 GitHub 分支保护或 ruleset 中，将 `frontend`、`backend` 检查设为必需。当前私有仓库的这两项设置经 GitHub API 查询均返回 403；已决定保持私有，待升级 GitHub Pro 后启用必需检查。在此之前，检查失败尚不能强制阻止合并。此阶段不执行部署。
+- 后端使用 Ubuntu、Temurin Java 18 和 Maven 缓存，在 `backend/` 运行 `./mvnw test`、`./mvnw verify`；`verify` 还会构建 Jar。部署阶段已为 Wrapper 添加 Git 可执行位；CI 中的 `chmod +x` 保留为兼容操作。
+- 任一步失败，所属 workflow 即失败。要让失败检查阻止合并，还需在目标分支（通常为 `main`）的 GitHub 分支保护或 ruleset 中，将 `frontend`、`backend` 检查设为必需。当前私有仓库的这两项设置经 GitHub API 查询均返回 403；已决定保持私有，待升级 GitHub Pro 后启用必需检查。在此之前，检查失败尚不能强制阻止合并。CI 仍不执行自动部署。
 
 具体配置、验证记录及后续部署建议见 [Phase 11.14.1 报告](PHASE_11.14.1_REPORT.md)。
 

@@ -13,6 +13,7 @@ dist/
 .env
 .env.*
 !.env.example
+deploy/config.sh
 *.env
 *.pem
 *.key

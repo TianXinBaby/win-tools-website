@@ -240,6 +240,8 @@ Nginx access_log 关闭；error log 为 error，运维日志限制读取、保�
 
 ## 备份、更新与回滚
 
+Phase 11.14.2 起，应用 Jar 与前端静态文件的**更新**优先使用 [手工部署脚本](../../deploy/README.md)。以下步骤保留为首次安装和故障人工处理参考；脚本要求服务器上有完整项目检出，并不会备份或回滚数据库。
+
 发布前备份数据库和两个应用产物。数据库备份账号独立于应用账号；为当前四张表授予 SELECT，
 未来有视图/触发器时按需加 SHOW VIEW/TRIGGER，不能为方便给应用账号提升权限。
 参考 [mysqldump 官方权限说明](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)。
