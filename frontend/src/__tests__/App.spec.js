@@ -78,7 +78,7 @@ describe('页面及路由', () => {
     await open('/tools')
     await flushPromises()
     expect(wrapper.text()).toContain(
-      '以及昵称、ASCII艺术、转盘、反应速度、魔法键盘、老电视、FPS和打字速度测试',
+      '以及昵称、ASCII艺术、转盘、反应速度、魔法键盘、老电视、FPS、打字速度、Mikutap、在线钢琴、随机头像和声控弹力球',
     )
     for (const slug of slugs) {
       expect(wrapper.find(`a.card-link[href="/tools/${slug}"]`).exists()).toBe(true)

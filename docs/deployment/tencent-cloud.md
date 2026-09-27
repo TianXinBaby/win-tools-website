@@ -203,7 +203,7 @@ Nginx 配置采用 TLS 1.2/1.3；80 只 301 跳转到固定 HTTPS 域名，后�
 不要在 location 新增 add_header 导致丢失 server 级继承策略。
 
 - X-Content-Type-Options=nosniff，X-Frame-Options=DENY，Referrer-Policy=strict-origin-when-cross-origin。
-- 禁用 camera、microphone、geolocation；不限制剪贴板。HTTPS 下验证 Clipboard 和 Web Crypto。
+- 禁用 camera、geolocation；仅允许本站在用户点击声控弹力球的启动按钮后请求 microphone。HTTPS 下验证麦克风、Clipboard 和 Web Crypto。
 - script-src 只允许 self，无 unsafe-eval / inline script；Vue 使用 Vite 预编译产物，无 CDN。
   Element Plus 动态样式需要 style-src 的 unsafe-inline。
   img-src 支持 self、data、blob 和 HTTPS（封面/本地预览/二维码）；远程 HTTP 图片在 HTTPS 生产站点不受支持，应改用 HTTPS。

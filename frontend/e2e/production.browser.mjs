@@ -15,6 +15,11 @@ const nginx = await readFile(
 )
 const policy = nginx.match(/add_header Content-Security-Policy "([^"]+)" always;/)?.[1]
 assert.ok(policy, 'Read CSP directly from the deployment example')
+const permissions = nginx.match(/add_header Permissions-Policy "([^"]+)" always;/)?.[1]
+assert.ok(
+  permissions?.includes('microphone=(self)'),
+  'Only the same origin may request a microphone',
+)
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
@@ -41,7 +46,7 @@ assert.ok(ready, 'Start a fresh isolated AdminBrowserApplication before this tes
 const server = createServer(async (req, res) => {
   res.setHeader('Content-Security-Policy', policy)
   res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.setHeader('Permissions-Policy', permissions)
   if (req.url.startsWith('/api/')) {
     const upstream = request(
       {

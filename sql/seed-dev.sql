@@ -118,6 +118,27 @@ SELECT '打字速度测试', 'typing-test', '测试输入速度和准确率。',
        'fun', '/tools/typing-test', 1, 170
 FROM tool WHERE slug = 'typing-test' HAVING COUNT(*) = 0;
 
+-- Phase 11.11.4: browser-local interactive tools. Also available separately.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'Mikutap', 'mikutap', '通过点击创造音乐和动态视觉效果。',
+       'fun', '/tools/mikutap', 1, 180
+FROM tool WHERE slug = 'mikutap' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '在线钢琴', 'online-piano', '使用键盘弹奏在线钢琴。',
+       'fun', '/tools/online-piano', 1, 190
+FROM tool WHERE slug = 'online-piano' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '随机头像生成器', 'random-avatar', '随机生成个性化头像。',
+       'fun', '/tools/random-avatar', 1, 200
+FROM tool WHERE slug = 'random-avatar' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '声控弹力球', 'voice-ball', '根据声音大小控制球体运动。',
+       'fun', '/tools/voice-ball', 1, 210
+FROM tool WHERE slug = 'voice-ball' HAVING COUNT(*) = 0;
+
 INSERT INTO article (title, slug, summary, content, category, status)
 SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',
        '本示例用于演示文章查询。请从网站 Windows 资源详情中的 Microsoft 官方入口查看下载说明，具体版本和系统要求以官方页面为准。',

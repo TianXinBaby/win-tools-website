@@ -41,7 +41,16 @@ Phase 11.11.3 再增加四个动画互动工具：
 - `/tools/fps-test`：实时 FPS、Frame Time 和平均 FPS；停止或离开页面取消动画帧。
 - `/tools/typing-test`：按正确字符计算 WPM、正确率和用时；仅最佳成绩保存在本浏览器的 `localStorage`。
 
-娱乐工具不调用第三方 API，也不上传输入。目录数据需来自现有 `tool` 表；开发库运行 `sql/seed-dev.sql`，已有数据库可分别运行 `sql/phase-11.11.2-fun-tools.sql` 和 `sql/phase-11.11.3-fun-tools.sql`。部署示例 Nginx 已包含 `/index.html` 回退，娱乐工具的 history 路由支持直接打开或刷新。
+Phase 11.11.4 增加四个高级互动工具：
+
+- `/tools/mikutap`：点击触发本地合成音符、限量 Canvas 粒子、波纹和颜色变化。
+- `/tools/online-piano`：键盘 A S D F G H J 或鼠标点击弹奏本地合成音符。
+- `/tools/random-avatar`：随机组合五种元素，生成、预览和下载本地 SVG 头像。
+- `/tools/voice-ball`：仅点击启动后请求麦克风，分析本地音量并驱动球体；停止或离开页面释放设备。
+
+娱乐工具不调用第三方 API，也不上传输入或录音。目录数据需来自现有 `tool` 表；开发库运行 `sql/seed-dev.sql`，已有数据库可分别运行 `sql/phase-11.11.2-fun-tools.sql`、`sql/phase-11.11.3-fun-tools.sql` 和 `sql/phase-11.11.4-fun-tools.sql`。部署示例 Nginx 已包含 `/index.html` 回退，娱乐工具的 history 路由支持直接打开或刷新。
+
+构建后运行 `node e2e/interactive.browser.mjs`，脚本会用生产构建和 Nginx 示例的安全响应头启动临时本地服务，再用模拟麦克风检查四个新页面的直达、刷新、音频与设备释放。
 
 上述四个媒体工具的图片和输入内容仅在当前浏览器中处理，不会上传服务器，也不保存到浏览器存储。
 文件上限 20 MiB、单边 8192 px、总像素 1600 万。格式与元数据限制详见根目录 README。

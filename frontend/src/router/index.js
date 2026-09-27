@@ -166,6 +166,30 @@ export const routes = [
     meta: { title: '打字速度测试' },
   },
   {
+    path: '/tools/mikutap',
+    name: 'tool-mikutap',
+    component: () => import('../views/tools/fun/MikutapView.vue'),
+    meta: { title: 'Mikutap' },
+  },
+  {
+    path: '/tools/online-piano',
+    name: 'tool-online-piano',
+    component: () => import('../views/tools/fun/OnlinePianoView.vue'),
+    meta: { title: '在线钢琴' },
+  },
+  {
+    path: '/tools/random-avatar',
+    name: 'tool-random-avatar',
+    component: () => import('../views/tools/fun/RandomAvatarView.vue'),
+    meta: { title: '随机头像生成器' },
+  },
+  {
+    path: '/tools/voice-ball',
+    name: 'tool-voice-ball',
+    component: () => import('../views/tools/fun/VoiceBallView.vue'),
+    meta: { title: '声控弹力球' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),

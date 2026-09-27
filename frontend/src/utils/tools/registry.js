@@ -16,6 +16,10 @@ const availableTools = new Set([
   'crt-tv',
   'fps-test',
   'typing-test',
+  'mikutap',
+  'online-piano',
+  'random-avatar',
+  'voice-ball',
 ])
 
 export function isToolAvailable(slug) {

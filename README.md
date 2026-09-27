@@ -2,11 +2,20 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.11.3：动画互动工具**，保留原有功能和后端 API。
+当前已实现 **Phase 11.11.4：高级互动工具**，保留原有功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
-已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及八个娱乐工具，共十七个浏览器本地工具。
+已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.11.4：高级互动工具
+
+- `/tools/mikutap`：点击产生本地合成音效、颜色变化、限量 Canvas 粒子和圆形波纹。
+- `/tools/online-piano`：使用 A S D F G H J 或点击琴键弹奏本地合成的 C 大调音符。
+- `/tools/random-avatar`：本地随机组合五种头像元素，预览并下载 SVG。
+- `/tools/voice-ball`：点击启动后请求麦克风，球体随声音大小运动；停止、离开或隐藏标签页即释放麦克风和音频。
+
+四个工具只在浏览器内运行，不调用第三方 API，也不上传录音或头像。工具目录沿用 `tool` 表和 `/api/tools`，无需改表结构。开发库可重新运行 `sql/seed-dev.sql`；已有数据库先执行 `USE win_tools;`，再运行 `SOURCE D:/study/win-tools-website/sql/phase-11.11.4-fun-tools.sql;`。脚本可重复执行且保留已有记录。Nginx 示例已有 history 路由回退，并将麦克风权限限制为本站；生产环境需使用 HTTPS。实现和验证见 [阶段报告](PHASE_11.11.4_REPORT.md)。
 
 ## Phase 11.11.3：动画互动工具
 
@@ -104,7 +113,7 @@ win-tools-website/
 │   │   ├── layouts/（MainLayout.vue、AdminLayout.vue）
 │   │   ├── router/（index.js、adminGuard.js）
 │   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态，tools/fun/ 娱乐工具逻辑）
-│   │   ├── views/（首页、列表、详情、404、tools/ 十七个工具页面、admin/ 登录、Dashboard 与内容管理）
+│   │   ├── views/（首页、列表、详情、404、tools/ 二十一个工具页面、admin/ 登录、Dashboard 与内容管理）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -117,7 +126,8 @@ win-tools-website/
 │   ├── init.sql
 │   ├── seed-dev.sql
 │   ├── phase-11.11.2-fun-tools.sql
-│   └── phase-11.11.3-fun-tools.sql
+│   ├── phase-11.11.3-fun-tools.sql
+│   └── phase-11.11.4-fun-tools.sql
 └── backend/
     ├── .mvn/wrapper/maven-wrapper.properties
     ├── mvnw
@@ -495,10 +505,10 @@ Vitest 覆盖真实组件交互、请求 payload、删除确认、loading、错�
    `seed-dev.sql` 仅供开发演示，与正式建表脚本分开，应用不会自动执行。
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
-   同时包含 17 个工具目录项（五个基础工具、四个媒体工具、八个娱乐工具）和 3 篇原创简短示例文章。
-   工具表继续只提供元数据；八个娱乐工具的 `category` 均为 `fun`，slug / path 与前端路由一致。
+   同时包含 21 个工具目录项（五个基础工具、四个媒体工具、十二个娱乐工具）和 3 篇原创简短示例文章。
+   工具表继续只提供元数据；十二个娱乐工具的 `category` 均为 `fun`，slug / path 与前端路由一致。
    已导入过的开发库需手工再次执行 seed 才会出现新增目录项；脚本不自动运行。
-   已有数据库如只需 Phase 11.11.3 数据，先执行 `USE win_tools;`，再执行 `SOURCE D:/study/win-tools-website/sql/phase-11.11.3-fun-tools.sql;`，无需导入开发演示内容。若还缺少 Phase 11.11.2 数据，另行运行 `sql/phase-11.11.2-fun-tools.sql`。
+   已有数据库如只需 Phase 11.11.4 数据，先执行 `USE win_tools;`，再执行 `SOURCE D:/study/win-tools-website/sql/phase-11.11.4-fun-tools.sql;`，无需导入开发演示内容。若还缺少之前的娱乐工具数据，可分别运行 `sql/phase-11.11.2-fun-tools.sql` 和 `sql/phase-11.11.3-fun-tools.sql`。
    早期五个工具的描述和示例文章保留目录阶段文案，不代表当前开放状态；前端 registry 标注实际开放状态。示例文章不是完整技术教程。
    Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
    在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
