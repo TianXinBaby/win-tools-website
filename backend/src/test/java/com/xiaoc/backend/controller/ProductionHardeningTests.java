@@ -1,5 +1,9 @@
 package com.xiaoc.backend.controller;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.core.rolling.RollingFileAppender;
+import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaoc.backend.mapper.AdminUserMapper;
@@ -14,8 +18,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -44,6 +52,49 @@ class ProductionHardeningTests {
         assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
         assertThat(response.getHeaders().get(HttpHeaders.SET_COOKIE)).isNull();
         verifyNoInteractions(admins);
+    }
+
+    @Test
+    void actuatorOnlyExposesSanitizedHealthAndInfo() throws Exception {
+        ResponseEntity<String> health = client.getForEntity("/actuator/health", String.class);
+        assertThat(health.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(health.getBody()).isEqualTo("{\"status\":\"UP\"}");
+        assertThat(json.readTree(health.getBody())).isEqualTo(json.readTree("{\"status\":\"UP\"}"));
+        assertThat(health.getHeaders().get(HttpHeaders.SET_COOKIE)).isNull();
+
+        ResponseEntity<String> info = client.getForEntity("/actuator/info", String.class);
+        assertThat(info.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json.readTree(info.getBody())).isEqualTo(json.readTree("{}"));
+
+        for (String path : new String[] {"/actuator", "/actuator/metrics", "/actuator/env", "/actuator/logfile"}) {
+            assertThat(client.getForEntity(path, String.class).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @Test
+    void logbackWritesRollingApplicationAndErrorFiles() throws Exception {
+        Logger root = ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger(Logger.ROOT_LOGGER_NAME);
+        assertThat(root.getAppender("APPLICATION_FILE")).isInstanceOf(RollingFileAppender.class);
+        assertThat(root.getAppender("ERROR_FILE")).isInstanceOf(RollingFileAppender.class);
+        RollingFileAppender<?> application = (RollingFileAppender<?>) root.getAppender("APPLICATION_FILE");
+        RollingFileAppender<?> error = (RollingFileAppender<?>) root.getAppender("ERROR_FILE");
+        assertThat(application.getRollingPolicy()).isInstanceOf(SizeAndTimeBasedRollingPolicy.class);
+        assertThat(error.getRollingPolicy()).isInstanceOf(SizeAndTimeBasedRollingPolicy.class);
+        assertThat(((SizeAndTimeBasedRollingPolicy<?>) application.getRollingPolicy()).getMaxHistory()).isEqualTo(14);
+        assertThat(((SizeAndTimeBasedRollingPolicy<?>) error.getRollingPolicy()).getMaxHistory()).isEqualTo(14);
+        assertThat(((SizeAndTimeBasedRollingPolicy<?>) application.getRollingPolicy()).getFileNamePattern())
+                .contains("application.%d{yyyy-MM-dd}.%i.log.gz");
+        assertThat(((SizeAndTimeBasedRollingPolicy<?>) error.getRollingPolicy()).getFileNamePattern())
+                .contains("error.%d{yyyy-MM-dd}.%i.log.gz");
+
+        String marker = UUID.randomUUID().toString();
+        org.slf4j.Logger logger = LoggerFactory.getLogger(ProductionHardeningTests.class);
+        logger.info("application-log-test-{}", marker);
+        logger.error("error-log-test-{}", marker);
+        String applicationText = Files.readString(Path.of(application.getFile()));
+        String errorText = Files.readString(Path.of(error.getFile()));
+        assertThat(applicationText).contains("application-log-test-" + marker, "error-log-test-" + marker);
+        assertThat(errorText).contains("error-log-test-" + marker).doesNotContain("application-log-test-" + marker);
     }
 
     @Test

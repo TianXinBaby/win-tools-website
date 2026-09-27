@@ -144,7 +144,7 @@ sudoedit /etc/win-tools/win-tools.env
 
 用真实值替换密码占位符，不能将真实文件放回 Git。配置必须含 `SPRING_PROFILES_ACTIVE=prod`、
 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USERNAME`、`DB_PASSWORD`、`SESSION_COOKIE_SECURE=true`。
-`SERVER_PORT` 默认 8080；修改它必须同步修改 Nginx 上游。
+`SERVER_PORT` 默认 8080；修改它必须同步修改 Nginx 上游。新版还应设置 `WIN_TOOLS_LOG_DIR=/opt/win-tools/logs`，配置参考 [无密钥示例](../../deploy/application-prod-example.yml)。
 
 这是 systemd EnvironmentFile，不使用 `export` 或 shell 命令替换；特殊字符按 systemd 的引号规则填写，
 不能用 shell `source` 加载。权限 600、owner win-tools，Nginx 用户和其他系统用户不得读取。
@@ -154,11 +154,17 @@ prod 的 Session 为 30m、HttpOnly、SameSite=Lax、Secure；生产禁止设置
 本地默认 profile 仍允许 HTTP Cookie。Session ID 不进入 API JSON，CSRF token 只用于已有 CSRF 接口及内存请求头。
 登录轮换 Session ID 和 CSRF token，退出使 Session 失效；重启会丢失 JVM Session，管理员需重新登录。
 
-prod 使用 INFO 日志、禁用 MyBatis SQL 日志和请求详情；未处理异常仅记录异常类型，
-不记录异常消息、堆栈、密码、正文、Token 或 Session ID。4xx/5xx 返回统一安全 JSON，容器 `/error` 同样过滤内部信息。
+prod 使用 INFO 日志、禁用 MyBatis SQL 日志和请求详情；应用的未处理异常仅记录异常类型，
+不主动记录异常消息、堆栈、密码、正文、Token 或 Session ID。4xx/5xx 返回统一安全 JSON，容器 `/error` 同样过滤内部信息。
 启动故障的底层库日志仍仅对运维人员开放，分享日志前需人工脱敏。
 
 ## systemd
+
+首次启动新版 Jar 前，创建仅供服务用户读取的日志目录：
+
+```sh
+sudo install -d -o win-tools -g win-tools -m 0700 /opt/win-tools/logs
+```
 
 ```sh
 sudo install -o root -g root -m 0644 /tmp/win-tools-release/deploy/systemd/win-tools-backend.service.example /etc/systemd/system/win-tools-backend.service
@@ -167,12 +173,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now win-tools-backend
 sudo systemctl status win-tools-backend --no-pager
 curl --fail http://127.0.0.1:8080/api/health
+curl --fail http://127.0.0.1:8080/actuator/health
 ```
 
 确认 `/usr/bin/java` 为 Java 18 后再启动。service 使用 User/Group=win-tools，
 WorkingDirectory=/opt/win-tools/backend，EnvironmentFile=/etc/win-tools/win-tools.env，
 ExecStart 为 `java -jar`，Restart=on-failure，NoNewPrivileges、PrivateTmp、UMask=0077。
-未设置破坏数据库网络访问的 sandbox。MySQL 不可用时排查连接，health 是存活检查，不代表数据库就绪。
+未设置破坏数据库网络访问的 sandbox。MySQL 不可用时排查连接；`/api/health` 是存活检查，Actuator health 还包含框架默认健康贡献者。
 
 ## 域名、HTTPS 与 Nginx
 
@@ -195,6 +202,7 @@ Nginx 配置采用 TLS 1.2/1.3；80 只 301 跳转到固定 HTTPS 域名，后�
 `/api` 和 `/api/` 原路径转发至回环 8080，不能末尾添加斜线导致去掉 `/api`。
 `try_files $uri $uri/ /index.html` 支持 SPA 深链接，缺失 assets 返回 404，index.html 不长期缓存。
 `client_max_body_size 1m` 容纳现有文章正文 JSON；本地图片处理不上传。
+`/actuator` 与 `/actuator/` 被 Nginx 明确返回 404，只可在服务器回环地址访问 Actuator。
 
 ### 响应头、转发信任与 CSP
 
@@ -226,17 +234,21 @@ Nginx 配置采用 TLS 1.2/1.3；80 只 301 跳转到固定 HTTPS 域名，后�
 sudo ss -lntp
 curl -I http://example.com/admin/login
 curl --fail https://example.com/api/health
+curl --fail http://127.0.0.1:8080/actuator/health
+curl -i https://example.com/actuator/health
+sudo bash deploy/status-check.sh
+sudo bash deploy/health-check.sh
 curl -I https://example.com/admin/windows
 curl -i https://example.com/api/admin/auth/me
 sudo journalctl -u win-tools-backend -n 100 --no-pager
 ```
 
-health 精确返回 `{"code":200,"message":"success","data":{"status":"UP"}}`，公开且不查数据库。
+`/api/health` 精确返回 `{"code":200,"message":"success","data":{"status":"UP"}}`，公开且不查数据库。Actuator health 仅返回 `{"status":"UP"}`；公网 `/actuator/health` 应为 404，`/actuator/metrics`、`/actuator/env` 等端点不开放。
 从受控外网核对 8080/3306 不可达；本机 8080 只监听 127.0.0.1，MySQL 只监听回环或授权内网。
 检查 HTTP 301、有效证书链、响应头只有一份；health 成功后仍必须访问公开数据 API 验证真实 MySQL。
 用浏览器验收刷新深链接、登录/退出、Session Cookie 属性、管理 CRUD、无 CSRF 返回 403、匿名 401、
 二维码/图片预览导出、剪贴板及 SHA-256，Console 无 CSP violation。不要把 Cookie 值或 token 放进截图/日志。
-Nginx access_log 关闭；error log 为 error，运维日志限制读取、保留和轮转，禁止配置 body/cookie/Authorization 日志字段。
+Spring Boot 继续写 journal，并在 `/opt/win-tools/logs/` 写 `application.log`、`error.log`；按日期和 20 MB 滚动，保留 14 天并限制归档总量。Nginx access log 位于 `/var/log/nginx/win-tools-access.log`，只记录时间、方法、状态、字节数、耗时和上游状态；error log 位于同目录的 `win-tools-error.log`，级别 error。确认 Ubuntu 的 Nginx logrotate 覆盖两个文件；限制读取权限并定期检查空间。访问日志格式不记录 IP、URL、查询串、正文、Cookie 或 Authorization。
 
 ## 备份、更新与回滚
 

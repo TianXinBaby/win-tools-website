@@ -9,6 +9,31 @@ spring:
     init:
       mode: never
 
+logging:
+  file:
+    path: ${WIN_TOOLS_LOG_DIR:logs}
+
+management:
+  endpoints:
+    access:
+      default: none
+      max-permitted: read-only
+    web:
+      exposure:
+        include: health,info
+      discovery:
+        enabled: false
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+    info:
+      access: read-only
+
 server:
   port: 8080
   servlet:

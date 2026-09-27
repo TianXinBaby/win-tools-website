@@ -51,4 +51,20 @@ class ProductionConfigurationTests {
         assertThat(config("application.yml").getProperty("server.servlet.session.cookie.secure"))
                 .isEqualTo("false");
     }
+
+    @Test
+    void actuatorAccessAndLogDirectoryHaveSafeDefaults() throws Exception {
+        StandardEnvironment environment = config("application.yml");
+        assertThat(environment.getProperty("management.endpoints.access.default")).isEqualTo("none");
+        assertThat(environment.getProperty("management.endpoints.access.max-permitted")).isEqualTo("read-only");
+        assertThat(environment.getProperty("management.endpoints.web.exposure.include")).isEqualTo("health,info");
+        assertThat(environment.getProperty("management.endpoints.web.discovery.enabled")).isEqualTo("false");
+        assertThat(environment.getProperty("management.endpoints.jmx.exposure.exclude")).isEqualTo("*");
+        assertThat(environment.getProperty("management.endpoint.health.show-details")).isEqualTo("never");
+        assertThat(environment.getProperty("management.endpoint.health.show-components")).isEqualTo("never");
+        assertThat(environment.getProperty("logging.file.path")).isEqualTo("logs");
+        environment.getPropertySources().addFirst(new MapPropertySource("log-dir", Map.of(
+                "WIN_TOOLS_LOG_DIR", "/opt/win-tools/logs")));
+        assertThat(environment.getProperty("logging.file.path")).isEqualTo("/opt/win-tools/logs");
+    }
 }

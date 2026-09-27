@@ -45,6 +45,11 @@ MOCK
 cat > "$mock_bin/systemctl" <<'MOCK'
 #!/usr/bin/env bash
 printf 'systemctl %s\n' "$*" >> "$MOCK_LOG"
+if [[ "${1:-}" == is-active ]]; then
+  service=${*: -1}
+  if [[ "$service" == win-tools-backend && "${MOCK_BACKEND_ACTIVE:-1}" == 0 ]]; then exit 3; fi
+  if [[ "$service" == nginx && "${MOCK_NGINX_ACTIVE:-1}" == 0 ]]; then exit 3; fi
+fi
 exit 0
 MOCK
 cat > "$mock_bin/nginx" <<'MOCK'
@@ -57,9 +62,26 @@ cat > "$mock_bin/curl" <<'MOCK'
 for arg in "$@"; do url=$arg; done
 if [[ "$url" == https://site.test/ ]]; then
   printf '%s' "${MOCK_SITE_STATUS:-200}"
+elif [[ "$url" == http://127.0.0.1:8080/actuator/health ]]; then
+  body=${MOCK_ACTUATOR_BODY-'{"status":"UP"}'}
+  printf '%s\n%s' "$body" "${MOCK_ACTUATOR_STATUS:-200}"
 else
   printf '{"code":200,"message":"success","data":{"status":"UP"}}\n%s' "${MOCK_BACKEND_STATUS:-200}"
 fi
+MOCK
+cat > "$mock_bin/ss" <<'MOCK'
+#!/usr/bin/env bash
+if [[ "${MOCK_PORT_PRESENT:-1}" != 0 ]]; then
+  printf 'LISTEN 0 4096 127.0.0.1:8080 0.0.0.0:*\n'
+fi
+MOCK
+cat > "$mock_bin/df" <<'MOCK'
+#!/usr/bin/env bash
+printf 'Filesystem Size Used Avail Use%% Mounted on\nmock 100G 20G 80G 20%% /opt\n'
+MOCK
+cat > "$mock_bin/free" <<'MOCK'
+#!/usr/bin/env bash
+printf '              total used free\nMem:          16Gi 4Gi 12Gi\n'
 MOCK
 chmod +x "$test_root/project/backend/mvnw" "$mock_bin"/*
 
@@ -104,6 +126,41 @@ grep -q 'systemctl start win-tools-backend' "$MOCK_LOG" || fail 'Backend service
 expect_failure '' bash "$repo_dir/deploy/health-check.sh"
 unset MOCK_BACKEND_STATUS
 bash "$repo_dir/deploy/health-check.sh" > "$test_root/health.log"
+grep -q 'Actuator UP' "$test_root/health.log" || fail 'Actuator health was not checked'
+export MOCK_ACTUATOR_STATUS=503
+expect_failure '' bash "$repo_dir/deploy/health-check.sh"
+grep -q 'Actuator health returned HTTP 503' "$test_root/output" || fail 'Actuator HTTP failure was not reported'
+unset MOCK_ACTUATOR_STATUS
+export MOCK_ACTUATOR_BODY='{"status":"DOWN"}'
+expect_failure '' bash "$repo_dir/deploy/health-check.sh"
+grep -q 'Actuator health response is not a safe UP status' "$test_root/output" || fail 'Actuator DOWN was accepted'
+unset MOCK_ACTUATOR_BODY
+export MOCK_BACKEND_ACTIVE=0
+expect_failure '' bash "$repo_dir/deploy/health-check.sh"
+unset MOCK_BACKEND_ACTIVE
+
+status_log_start=$(wc -l < "$MOCK_LOG")
+bash "$repo_dir/deploy/status-check.sh" > "$test_root/status.log"
+tail -n "+$((status_log_start + 1))" "$MOCK_LOG" > "$test_root/status-commands.log"
+if grep -Eq '^systemctl (start|stop|restart|reload|enable|disable)' "$test_root/status-commands.log"; then
+  fail 'Status check changed a service'
+fi
+grep -q 'Backend port 8080: listening on loopback' "$test_root/status.log" || fail 'Port status is missing'
+grep -q 'nginx: active' "$test_root/status.log" || fail 'Nginx status is missing'
+grep -q 'Disk space' "$test_root/status.log" || fail 'Disk status is missing'
+grep -q 'Memory' "$test_root/status.log" || fail 'Memory status is missing'
+export MOCK_PORT_PRESENT=0
+expect_failure '' bash "$repo_dir/deploy/status-check.sh"
+unset MOCK_PORT_PRESENT
+export MOCK_NGINX_ACTIVE=0
+expect_failure '' bash "$repo_dir/deploy/status-check.sh"
+unset MOCK_NGINX_ACTIVE
+
+nginx_config="$repo_dir/deploy/nginx/win-tools.conf.example"
+grep -Fq '/var/log/nginx/win-tools-access.log win_tools_ops' "$nginx_config" || fail 'Safe Nginx access log is missing'
+grep -Fq 'location ^~ /actuator/' "$nginx_config" || fail 'Public Actuator block is missing'
+log_format=$(grep '^log_format win_tools_ops ' "$nginx_config")
+[[ "$log_format" != *'$remote_addr'* && "$log_format" != *'$uri'* && "$log_format" != *'$request_uri'* && "$log_format" != *'$http_'* ]] || fail 'Nginx access log includes request or client data'
 
 second_id=${second_snapshot##*/}
 expect_failure 'WRONG' bash "$repo_dir/deploy/rollback.sh"

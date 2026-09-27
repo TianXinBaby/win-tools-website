@@ -2,11 +2,19 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.14.2：手工部署脚本**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
+当前已实现 **Phase 11.14.3：生产日志与监控**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.14.3：生产日志与监控
+
+后端日志继续进入 systemd journal，同时写入 `application.log` 与仅记录 ERROR 的 `error.log`。生产路径为 `/opt/win-tools/logs/`，由 `WIN_TOOLS_LOG_DIR` 设置；按日期和 20 MB 文件大小滚动，保留 14 天，并分别限制归档总量。日志目录由运维人员预先创建并限制权限，Git 忽略 `logs/`。
+
+原有公开 `/api/health` 保持兼容。Actuator 仅在回环监听的后端提供 `/actuator/health` 和 `/actuator/info`；健康响应只显示状态，metrics、env、logfile 等端点不开放，Nginx 拒绝公网 `/actuator` 请求。`deploy/health-check.sh` 检查 systemd、HTTPS 首页、原有健康接口和 Actuator；`deploy/status-check.sh` 只读显示服务、回环端口、Nginx、磁盘和内存状态。Nginx 的受限访问日志位于 `/var/log/nginx/win-tools-access.log`，格式不记录 IP、URL、查询串、请求头或正文；错误日志位于同目录的 `win-tools-error.log`。
+
+生产配置参考 [无密钥示例](deploy/application-prod-example.yml)，上线和目录权限步骤见 [部署说明](deploy/README.md)；实现及验证见 [Phase 11.14.3 报告](PHASE_11.14.3_REPORT.md)。本阶段未新增管理员页面或业务 API。真实 Ubuntu/Nginx/systemd 环境仍需部署后验收。
 
 ## Phase 11.14.2：标准化部署
 
@@ -102,6 +110,7 @@ health、容器错误及离线 Hash。Chrome 生产 CSP 验证方法见 [前端 
 - JDK 18
 - Spring Boot 3.5.16（稳定版，Java 18 在其兼容范围内）
 - Spring Web、Spring Validation、Lombok
+- Spring Boot Actuator（仅开放健康与信息端点）
 - Spring Security 6.5.11；spring-security-test 6.5.11（test scope），均由 Spring Boot BOM 管理
 - MySQL 8 / MySQL Connector/J 9.7.0（runtime，由 Spring Boot 管理版本）
 - MyBatis-Plus Spring Boot 3 Starter 3.5.17

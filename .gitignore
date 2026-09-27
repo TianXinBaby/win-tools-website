@@ -25,6 +25,7 @@ deploy/config.sh
 *.cer
 
 # Logs and temporary files
+logs/
 *.log
 *.tmp
 *.temp

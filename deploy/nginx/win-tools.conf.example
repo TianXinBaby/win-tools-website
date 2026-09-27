@@ -1,10 +1,14 @@
 # Include inside nginx.conf's http {} context. Replace example.com and TLS paths.
 # Do not add location-level add_header directives: they override inherited headers.
+# Operational access log excludes IP, URI, query, headers and request body.
+log_format win_tools_ops '$time_iso8601 method=$request_method status=$status bytes=$body_bytes_sent request_time=$request_time upstream_status=$upstream_status';
 server {
     listen 80;
     listen [::]:80;
     server_name example.com;
     server_tokens off;
+    access_log /var/log/nginx/win-tools-access.log win_tools_ops;
+    error_log /var/log/nginx/win-tools-error.log error;
     return 301 https://example.com$request_uri;
 }
 
@@ -30,8 +34,8 @@ server {
     # Enable only AFTER successful HTTPS validation; no includeSubDomains/preload.
     # add_header Strict-Transport-Security "max-age=86400" always;
 
-    # No access log: requests can contain query strings; never log cookies/bodies.
-    access_log off;
+    # The custom format omits request targets, client IP and credentials.
+    access_log /var/log/nginx/win-tools-access.log win_tools_ops;
     error_log /var/log/nginx/win-tools-error.log error;
 
     # Inherit proxy settings in both API locations; preserve /api in upstream URI.
@@ -59,6 +63,13 @@ server {
     }
     location ^~ /api/ {
         proxy_pass http://127.0.0.1:8080;
+    }
+    # Actuator is for loopback operators only; never route it from the public site.
+    location = /actuator {
+        return 404;
+    }
+    location ^~ /actuator/ {
+        return 404;
     }
     location ~ /\. {
         deny all;
