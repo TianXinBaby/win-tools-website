@@ -8,7 +8,7 @@
 - 现有前端 `index.html` 和 `backend.jar` 必须可用。这些脚本用于**更新**；首次安装仍按 [部署手册](../docs/deployment/tencent-cloud.md) 完成。先确保 systemd 的 EnvironmentFile、Nginx TLS 和 DNS 已配置、可用。
 - 从具有 sudo 权限的部署用户运行。脚本经 `sudo` 提权以备份、切换文件和控制服务，但 npm/Maven 构建会由原部署用户执行。不要以直接登录的 root 用户运行。审核检出代码及 npm 生命周期脚本后再部署。
 - 在服务器的 `deploy/` 下复制 `config.example.sh` 为 `config.sh`，设置实际路径和 `SITE_URL`。`config.sh` 已被 Git 忽略，仅允许可信管理员编辑；它是 Bash 配置，**不能**把 `/etc/win-tools/win-tools.env` 当作它加载。不要把密码、Token 或私钥写入部署配置。`SITE_URL` 必须是能从服务器访问、证书有效的正式 HTTPS 地址。
-- `BACKUP_DIR` 必须是 `PROJECT_DIR/backups`，且与 `FRONTEND_DIR` 在同一文件系统，以便静态目录通过目录重命名切换。备份目录权限设为 0700。配置中的 `BACKUP_LIMIT` 默认 10；达到上限后新部署停止，由管理员核实、异地归档并手工清理旧快照。脚本绝不自动删除快照；紧急回滚可额外创建一个保护现场的快照，之后应立即检查容量。
+- `BACKUP_DIR` 必须是 `PROJECT_DIR/backups`，且与 `FRONTEND_DIR` 在同一文件系统，以便静态目录通过目录重命名切换。备份目录权限设为 0700，已被 Git 忽略。配置中的 `BACKUP_LIMIT` 默认 10；达到上限后新部署停止，由管理员核实、异地归档并手工清理旧快照。脚本绝不自动删除快照；紧急回滚可额外创建一个保护现场的快照，之后应立即检查容量。
 - 这些脚本不替代部署前的 MySQL 备份。涉及数据库变更时，先按部署手册单独备份并评审兼容性；回滚脚本只恢复 Jar 和静态文件。
 
 ## 执行方式

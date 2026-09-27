@@ -2,6 +2,7 @@
 # Run on Ubuntu or Git Bash. All writes stay under the repository's ignored .cache directory.
 set -euo pipefail
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+git -C "$repo_dir" check-ignore -q backups/release.jar || { printf 'FAIL: deployment backups must be ignored by Git\n' >&2; exit 1; }
 mkdir -p "$repo_dir/.cache"
 test_root=$(mktemp -d "$repo_dir/.cache/deploy-tests.XXXXXX")
 cleanup() {
