@@ -97,6 +97,27 @@ SELECT '反应速度测试', 'reaction-test', '测试用户反应时间。',
        'fun', '/tools/reaction-test', 1, 130
 FROM tool WHERE slug = 'reaction-test' HAVING COUNT(*) = 0;
 
+-- Phase 11.11.3: browser-local animation and typing tools. Also available separately.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '魔法键盘', 'magic-keyboard', '按下键盘触发粒子动画和声音效果。',
+       'fun', '/tools/magic-keyboard', 1, 140
+FROM tool WHERE slug = 'magic-keyboard' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '老电视模拟器', 'crt-tv', '模拟复古CRT电视显示效果。',
+       'fun', '/tools/crt-tv', 1, 150
+FROM tool WHERE slug = 'crt-tv' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'FPS测试', 'fps-test', '检测浏览器动画帧率。',
+       'fun', '/tools/fps-test', 1, 160
+FROM tool WHERE slug = 'fps-test' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '打字速度测试', 'typing-test', '测试输入速度和准确率。',
+       'fun', '/tools/typing-test', 1, 170
+FROM tool WHERE slug = 'typing-test' HAVING COUNT(*) = 0;
+
 INSERT INTO article (title, slug, summary, content, category, status)
 SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',
        '本示例用于演示文章查询。请从网站 Windows 资源详情中的 Microsoft 官方入口查看下载说明，具体版本和系统要求以官方页面为准。',

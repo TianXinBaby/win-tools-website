@@ -35,13 +35,14 @@ class ContentDevSeedTests {
     void seedCanBeRepeatedAndProvidesPublicExamplesWithoutAdminAccounts() {
         seed();
         seed();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(13L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(17L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM article", Long.class)).isEqualTo(3L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM admin_user", Long.class)).isZero();
         var tools = toolService.listPublicTools();
         assertThat(tools).extracting(ToolVO::slug).containsExactly("json", "uuid", "timestamp", "sha256", "base64",
                 "qrcode", "image-compress", "image-resize", "image-convert",
-                "nickname-generator", "ascii-art", "lucky-wheel", "reaction-test");
+                "nickname-generator", "ascii-art", "lucky-wheel", "reaction-test",
+                "magic-keyboard", "crt-tv", "fps-test", "typing-test");
         assertThat(tools).allSatisfy(tool -> {
             assertThat(tool.path()).isEqualTo("/tools/" + tool.slug());
             if (tool.category().equals("media")) {
@@ -72,6 +73,8 @@ class ContentDevSeedTests {
                 "User-maintained media tool");
         jdbc.update("UPDATE tool SET status = 0, description = ?, sort_order = 44 WHERE slug = 'lucky-wheel'",
                 "User-maintained fun tool");
+        jdbc.update("UPDATE tool SET status = 0, description = ?, sort_order = 45 WHERE slug = 'fps-test'",
+                "User-maintained animation tool");
         jdbc.update("UPDATE article SET status = 0, content = ?, view_count = 27 WHERE slug = 'online-tools-guide'",
                 "User-maintained draft");
         var toolsBefore = jdbc.queryForList("SELECT * FROM tool ORDER BY id");
@@ -102,6 +105,27 @@ class ContentDevSeedTests {
         assertThat(jdbc.queryForList("SELECT * FROM tool ORDER BY id")).isEqualTo(before);
     }
 
+    @Test
+    void animationCatalogScriptIsRepeatableAndPreservesExistingRows() {
+        animationSeed();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(4L);
+        assertThat(toolService.listPublicTools()).extracting(ToolVO::slug)
+                .containsExactly("magic-keyboard", "crt-tv", "fps-test", "typing-test");
+        assertThat(toolService.listPublicTools()).extracting(ToolVO::name)
+                .containsExactly("魔法键盘", "老电视模拟器", "FPS测试", "打字速度测试");
+        assertThat(toolService.listPublicTools()).extracting(ToolVO::description)
+                .containsExactly("按下键盘触发粒子动画和声音效果。", "模拟复古CRT电视显示效果。",
+                        "检测浏览器动画帧率。", "测试输入速度和准确率。");
+        assertThat(toolService.listPublicTools()).allSatisfy(tool -> {
+            assertThat(tool.category()).isEqualTo("fun");
+            assertThat(tool.path()).isEqualTo("/tools/" + tool.slug());
+        });
+        jdbc.update("UPDATE tool SET status = 0, description = ? WHERE slug = 'crt-tv'", "Custom TV");
+        var before = jdbc.queryForList("SELECT * FROM tool ORDER BY id");
+        animationSeed();
+        assertThat(jdbc.queryForList("SELECT * FROM tool ORDER BY id")).isEqualTo(before);
+    }
+
     private void seed() {
         var populator = new ResourceDatabasePopulator(new FileSystemResource("../sql/seed-dev.sql"));
         populator.setSqlScriptEncoding("UTF-8");
@@ -110,6 +134,12 @@ class ContentDevSeedTests {
 
     private void funSeed() {
         var populator = new ResourceDatabasePopulator(new FileSystemResource("../sql/phase-11.11.2-fun-tools.sql"));
+        populator.setSqlScriptEncoding("UTF-8");
+        populator.execute(dataSource);
+    }
+
+    private void animationSeed() {
+        var populator = new ResourceDatabasePopulator(new FileSystemResource("../sql/phase-11.11.3-fun-tools.sql"));
         populator.setSqlScriptEncoding("UTF-8");
         populator.execute(dataSource);
     }

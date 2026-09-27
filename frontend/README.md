@@ -34,7 +34,14 @@ Phase 11.11.2 增加四个浏览器本地娱乐工具：
 - `/tools/lucky-wheel`：2–12 个自定义选项，旋转后显示随机结果。
 - `/tools/reaction-test`：随机等待后测量反应时间；仅最佳成绩写入本浏览器的 `localStorage`。
 
-娱乐工具不调用第三方 API，也不上传输入。目录数据需来自现有 `tool` 表；开发库运行 `sql/seed-dev.sql`，已有数据库可只运行 `sql/phase-11.11.2-fun-tools.sql`。部署示例 Nginx 已包含 `/index.html` 回退，四个 history 路由支持直接打开或刷新。
+Phase 11.11.3 再增加四个动画互动工具：
+
+- `/tools/magic-keyboard`：按键粒子、颜色和按键显示，可选本地合成声音；离开页面释放动画帧、监听和音频资源。
+- `/tools/crt-tv`：可切换的黑白、扫描线、噪点与闪烁 CSS 效果。
+- `/tools/fps-test`：实时 FPS、Frame Time 和平均 FPS；停止或离开页面取消动画帧。
+- `/tools/typing-test`：按正确字符计算 WPM、正确率和用时；仅最佳成绩保存在本浏览器的 `localStorage`。
+
+娱乐工具不调用第三方 API，也不上传输入。目录数据需来自现有 `tool` 表；开发库运行 `sql/seed-dev.sql`，已有数据库可分别运行 `sql/phase-11.11.2-fun-tools.sql` 和 `sql/phase-11.11.3-fun-tools.sql`。部署示例 Nginx 已包含 `/index.html` 回退，娱乐工具的 history 路由支持直接打开或刷新。
 
 上述四个媒体工具的图片和输入内容仅在当前浏览器中处理，不会上传服务器，也不保存到浏览器存储。
 文件上限 20 MiB、单边 8192 px、总像素 1600 万。格式与元数据限制详见根目录 README。

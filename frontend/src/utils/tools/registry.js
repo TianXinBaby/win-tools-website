@@ -12,6 +12,10 @@ const availableTools = new Set([
   'ascii-art',
   'lucky-wheel',
   'reaction-test',
+  'magic-keyboard',
+  'crt-tv',
+  'fps-test',
+  'typing-test',
 ])
 
 export function isToolAvailable(slug) {

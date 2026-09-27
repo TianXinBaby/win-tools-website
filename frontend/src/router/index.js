@@ -142,6 +142,30 @@ export const routes = [
     meta: { title: '反应速度测试' },
   },
   {
+    path: '/tools/magic-keyboard',
+    name: 'tool-magic-keyboard',
+    component: () => import('../views/tools/fun/MagicKeyboardView.vue'),
+    meta: { title: '魔法键盘' },
+  },
+  {
+    path: '/tools/crt-tv',
+    name: 'tool-crt-tv',
+    component: () => import('../views/tools/fun/CrtTvView.vue'),
+    meta: { title: '老电视模拟器' },
+  },
+  {
+    path: '/tools/fps-test',
+    name: 'tool-fps-test',
+    component: () => import('../views/tools/fun/FpsTestView.vue'),
+    meta: { title: 'FPS测试' },
+  },
+  {
+    path: '/tools/typing-test',
+    name: 'tool-typing-test',
+    component: () => import('../views/tools/fun/TypingTestView.vue'),
+    meta: { title: '打字速度测试' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),
