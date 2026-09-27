@@ -11,7 +11,7 @@ const { data, loading, error, reload } = useResource(getTools)
     <h1>在线工具</h1>
     <p>
       已开放 JSON、UUID
-      v4、时间戳、SHA-256、Base64、二维码与图片压缩、尺寸调整、格式转换，均在浏览器本地运行，图片和输入不会上传或保存。
+      v4、时间戳、SHA-256、Base64、二维码、图片处理，以及昵称、ASCII艺术、转盘和反应速度测试，均在浏览器本地运行。反应速度测试的最佳成绩仅保存在当前浏览器。
     </p>
   </div>
   <ResourceState :loading="loading" :error="error" :empty="!data?.length" @retry="reload"

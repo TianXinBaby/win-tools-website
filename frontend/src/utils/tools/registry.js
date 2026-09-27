@@ -8,6 +8,10 @@ const availableTools = new Set([
   'image-compress',
   'image-resize',
   'image-convert',
+  'nickname-generator',
+  'ascii-art',
+  'lucky-wheel',
+  'reaction-test',
 ])
 
 export function isToolAvailable(slug) {

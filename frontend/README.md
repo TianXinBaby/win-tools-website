@@ -27,7 +27,16 @@ npm.cmd audit
 - `/tools/image-resize`：保持原图比例或自定义尺寸。
 - `/tools/image-convert`：静态 JPEG / PNG / WebP 转换。
 
-图片和输入内容仅在当前浏览器中处理，不会上传服务器。不保存到浏览器存储。
+Phase 11.11.2 增加四个浏览器本地娱乐工具：
+
+- `/tools/nickname-generator`：游戏、程序员、可爱、中二四类昵称生成与复制。
+- `/tools/ascii-art`：本地字符映射生成 ASCII 艺术，支持英文字母、数字及常用标点。
+- `/tools/lucky-wheel`：2–12 个自定义选项，旋转后显示随机结果。
+- `/tools/reaction-test`：随机等待后测量反应时间；仅最佳成绩写入本浏览器的 `localStorage`。
+
+娱乐工具不调用第三方 API，也不上传输入。目录数据需来自现有 `tool` 表；开发库运行 `sql/seed-dev.sql`，已有数据库可只运行 `sql/phase-11.11.2-fun-tools.sql`。部署示例 Nginx 已包含 `/index.html` 回退，四个 history 路由支持直接打开或刷新。
+
+上述四个媒体工具的图片和输入内容仅在当前浏览器中处理，不会上传服务器，也不保存到浏览器存储。
 文件上限 20 MiB、单边 8192 px、总像素 1600 万。格式与元数据限制详见根目录 README。
 共享图片面板和工具函数统一管理解码、Canvas 导出、错误及资源释放。
 Vitest 使用模拟 Canvas 测试边界、交互和资源生命周期；真实图片导出需要浏览器验证。

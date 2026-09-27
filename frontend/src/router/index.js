@@ -118,6 +118,30 @@ export const routes = [
     meta: { title: '图片格式转换' },
   },
   {
+    path: '/tools/nickname-generator',
+    name: 'tool-nickname-generator',
+    component: () => import('../views/tools/fun/NicknameGeneratorView.vue'),
+    meta: { title: '随机昵称生成器' },
+  },
+  {
+    path: '/tools/ascii-art',
+    name: 'tool-ascii-art',
+    component: () => import('../views/tools/fun/AsciiArtView.vue'),
+    meta: { title: 'ASCII艺术生成器' },
+  },
+  {
+    path: '/tools/lucky-wheel',
+    name: 'tool-lucky-wheel',
+    component: () => import('../views/tools/fun/LuckyWheelView.vue'),
+    meta: { title: '幸运转盘' },
+  },
+  {
+    path: '/tools/reaction-test',
+    name: 'tool-reaction-test',
+    component: () => import('../views/tools/fun/ReactionTestView.vue'),
+    meta: { title: '反应速度测试' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),

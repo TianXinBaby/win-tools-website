@@ -77,7 +77,7 @@ describe('页面及路由', () => {
     )
     await open('/tools')
     await flushPromises()
-    expect(wrapper.text()).toContain('二维码与图片压缩、尺寸调整、格式转换')
+    expect(wrapper.text()).toContain('以及昵称、ASCII艺术、转盘和反应速度测试')
     for (const slug of slugs) {
       expect(wrapper.find(`a.card-link[href="/tools/${slug}"]`).exists()).toBe(true)
     }

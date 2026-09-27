@@ -2,11 +2,20 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现**第十阶段：质量、安全强化与腾讯云部署准备**，保留前九阶段的功能和后端 API。
+当前已实现 **Phase 11.11.2：基础娱乐工具**，保留原有功能和后端 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
-已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、图片压缩、图片尺寸调整、图片格式转换九个浏览器本地工具。
+已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及昵称、ASCII 艺术、幸运转盘、反应速度测试，共十三个浏览器本地工具。
 已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.11.2：基础娱乐工具
+
+- `/tools/nickname-generator`：从四类内置词库随机组合昵称，可复制结果。
+- `/tools/ascii-art`：将最多 32 个英文字母、数字、空格和 `. , ! ? - :` 转为 5×7 ASCII 字符艺术，可清空与复制；未映射字符会显示说明。
+- `/tools/lucky-wheel`：输入 2–12 个选项，浏览器本地随机选中等大扇区，旋转后显示结果，可重新开始。
+- `/tools/reaction-test`：随机等待 1.5–4 秒，点击目标后按单调时钟计算毫秒成绩；仅最佳成绩保存在当前浏览器的 `localStorage`。
+
+四个工具不发送用户输入或测试结果到 API。工具目录沿用 `tool` 表和 `/api/tools`，仅增加 `category=fun` 元数据，未改表结构或 API 格式。开发库可重新运行 `sql/seed-dev.sql`；已有数据库可单独运行 `sql/phase-11.11.2-fun-tools.sql`，该脚本只新增缺失的四条工具数据，保留已有记录。具体实现和验证见 [阶段报告](PHASE_11.11.2_REPORT.md)。
 
 ## 第十阶段：生产配置与部署准备
 
@@ -85,8 +94,8 @@ win-tools-website/
 │   │   ├── composables/useResource.js
 │   │   ├── layouts/（MainLayout.vue、AdminLayout.vue）
 │   │   ├── router/（index.js、adminGuard.js）
-│   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态）
-│   │   ├── views/（首页、列表、详情、404、tools/ 九个工具页面、admin/ 登录、Dashboard 与内容管理）
+│   │   ├── utils/（request.js、urls.js、tools/ 工具核心逻辑和开放状态，tools/fun/ 娱乐工具逻辑）
+│   │   ├── views/（首页、列表、详情、404、tools/ 十三个工具页面、admin/ 登录、Dashboard 与内容管理）
 │   │   ├── __tests__/
 │   │   ├── App.vue
 │   │   └── main.js
@@ -97,7 +106,8 @@ win-tools-website/
 │   └── vitest.config.js
 ├── sql/
 │   ├── init.sql
-│   └── seed-dev.sql
+│   ├── seed-dev.sql
+│   └── phase-11.11.2-fun-tools.sql
 └── backend/
     ├── .mvn/wrapper/maven-wrapper.properties
     ├── mvnw
@@ -202,6 +212,10 @@ PowerShell 统一使用 `npm.cmd`，避免 `npm.ps1` 被 ExecutionPolicy 阻止�
 | `/tools/image-compress` | JPEG / WebP 质量调整、PNG 重新编码 |
 | `/tools/image-resize` | 保持原图比例或自定义宽高，下载图片 |
 | `/tools/image-convert` | 静态 JPEG / PNG / WebP 格式转换 |
+| `/tools/nickname-generator` | 四类内置词库随机组合昵称、复制 |
+| `/tools/ascii-art` | 本地字符映射生成 ASCII 艺术、清空、复制 |
+| `/tools/lucky-wheel` | 自定义选项、旋转、随机停靠和重新开始 |
+| `/tools/reaction-test` | 随机等待、反应时间、浏览器本地最佳成绩 |
 | `/tools/:slug` | 未实现工具的通用介绍，继续提示尚未开放 |
 | `/articles` | 文章标题、摘要、封面、分类、浏览量、发布时间；不展示正文 |
 | `/articles/:id` | 文章纯文本正文、摘要、封面及发布时间 / 更新时间等信息 |
@@ -471,9 +485,10 @@ Vitest 覆盖真实组件交互、请求 payload、删除确认、loading、错�
    `seed-dev.sql` 仅供开发演示，与正式建表脚本分开，应用不会自动执行。
    示例包含 Windows 11 / Windows 10，下载入口只使用 Microsoft 官方页面，不存储 ISO。
    示例版本不代表官方入口当前提供的版本；发布日期和 SHA256 未确认，因此使用 `NULL`。
-   同时包含 9 个工具目录项（五个基础工具及二维码、压缩、尺寸调整、格式转换）和 3 篇原创简短示例文章。
-   工具表继续只提供元数据；第七阶段仅补充四个媒体工具，其 slug / path 与前端路由一致。
+   同时包含 13 个工具目录项（五个基础工具、四个媒体工具、四个娱乐工具）和 3 篇原创简短示例文章。
+   工具表继续只提供元数据；四个娱乐工具的 `category` 均为 `fun`，slug / path 与前端路由一致。
    已导入过的开发库需手工再次执行 seed 才会出现新增目录项；脚本不自动运行。
+   已有数据库如只需本阶段数据，先执行 `USE win_tools;`，再执行 `SOURCE D:/study/win-tools-website/sql/phase-11.11.2-fun-tools.sql;`，无需导入开发演示内容。
    早期五个工具的描述和示例文章保留目录阶段文案，不代表当前开放状态；前端 registry 标注实际开放状态。示例文章不是完整技术教程。
    Windows 按名称、版本、edition、architecture 判断是否存在，Tool / Article 按各自 slug 判断。
    在单个本地会话中顺序重复执行不会重复插入，不覆盖已有数据、不重新启用 disabled 工具、不发布已有 draft。
@@ -701,4 +716,4 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 遵循根目录 `AGENTS.md`。不提交构建输出、依赖缓存、真实密码、密钥或本地环境配置。
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
-下一阶段仅建议：阶段 11：腾讯云真实上线与域名 HTTPS 配置，须明确授权后再操作真实服务器。
+后续可在授权的环境中完成真实 MySQL 数据导入、腾讯云上线与域名 HTTPS 验收；操作真实服务器前需明确授权。

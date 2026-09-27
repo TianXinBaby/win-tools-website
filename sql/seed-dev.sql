@@ -28,7 +28,7 @@ WHERE name = 'Windows 10' AND version = '22H2'
   AND edition = 'Windows 10' AND architecture = 'x64'
 HAVING COUNT(*) = 0;
 
--- Catalog metadata only. Tool implementations and frontend routes do not exist yet.
+-- Catalog metadata only; browser-local implementations live in frontend.
 INSERT INTO tool (name, slug, description, category, path, status, sort_order)
 SELECT 'JSON 格式化', 'json', 'JSON 格式化工具目录示例；当前阶段未实现工具功能。',
        'developer', '/tools/json', 1, 10
@@ -75,6 +75,27 @@ INSERT INTO tool (name, slug, description, category, path, status, sort_order)
 SELECT '图片格式转换', 'image-convert', '本地转换静态 JPEG、PNG、WebP；JPEG 透明区域填充白色。',
        'media', '/tools/image-convert', 1, 90
 FROM tool WHERE slug = 'image-convert' HAVING COUNT(*) = 0;
+
+-- Phase 11.11.2: browser-local fun tools. Also available separately in phase-11.11.2-fun-tools.sql.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '随机昵称生成器', 'nickname-generator', '随机生成游戏昵称、个性昵称。',
+       'fun', '/tools/nickname-generator', 1, 100
+FROM tool WHERE slug = 'nickname-generator' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT 'ASCII艺术生成器', 'ascii-art', '将文字转换为字符艺术。',
+       'fun', '/tools/ascii-art', 1, 110
+FROM tool WHERE slug = 'ascii-art' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '幸运转盘', 'lucky-wheel', '自定义选项随机选择。',
+       'fun', '/tools/lucky-wheel', 1, 120
+FROM tool WHERE slug = 'lucky-wheel' HAVING COUNT(*) = 0;
+
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '反应速度测试', 'reaction-test', '测试用户反应时间。',
+       'fun', '/tools/reaction-test', 1, 130
+FROM tool WHERE slug = 'reaction-test' HAVING COUNT(*) = 0;
 
 INSERT INTO article (title, slug, summary, content, category, status)
 SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',

@@ -504,6 +504,17 @@ dd {
   color: #b42318;
   margin: 0;
 }
+.fun-result {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #c8d9f8;
+  border-radius: 8px;
+  background: #edf3ff;
+  color: #203e78;
+  font-size: 1.1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
 .privacy-note {
   font-size: 0.85rem;
   border-left: 3px solid #7ca995;
