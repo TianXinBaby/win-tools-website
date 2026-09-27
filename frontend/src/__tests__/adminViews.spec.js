@@ -6,6 +6,7 @@ import App from '../App.vue'
 import { routes } from '../router'
 import { installAdminGuard } from '../router/adminGuard'
 import { getAdminCsrf, getCurrentAdmin, loginAdmin, logoutAdmin } from '../api/adminAuth'
+import { getStats } from '../api/adminDashboard'
 import {
   adminSession,
   clearAdminSession,
@@ -19,6 +20,7 @@ vi.mock('../api/adminAuth', () => ({
   loginAdmin: vi.fn(),
   logoutAdmin: vi.fn(),
 }))
+vi.mock('../api/adminDashboard', () => ({ getStats: vi.fn() }))
 const admin = { id: 1, username: 'test-admin', nickname: '测试管理员' }
 const csrf = { token: 'test-token', headerName: 'X-Test-CSRF' }
 const unauthorized = () => Object.assign(new Error('Unauthorized'), { status: 401 })
@@ -28,6 +30,14 @@ beforeEach(() => {
   clearAdminSession()
   getCurrentAdmin.mockRejectedValue(unauthorized())
   getAdminCsrf.mockResolvedValue(csrf)
+  getStats.mockResolvedValue({
+    toolTotal: 0,
+    toolEnabled: 0,
+    toolDisabled: 0,
+    articleTotal: 0,
+    articlePublished: 0,
+    categoryCount: 0,
+  })
 })
 afterEach(() => {
   wrapper?.unmount()

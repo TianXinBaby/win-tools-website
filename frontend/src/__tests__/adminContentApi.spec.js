@@ -3,6 +3,7 @@ import request from '../utils/request'
 import * as windows from '../api/adminWindows'
 import * as tools from '../api/adminTools'
 import * as articles from '../api/adminArticles'
+import { getStats } from '../api/adminDashboard'
 import { adminSession, clearAdminSession, setCurrentAdmin } from '../utils/adminSession'
 
 const originalAdapter = request.defaults.adapter
@@ -81,4 +82,26 @@ it.each([
 ])('409 使用安全文案 %s', async (message, expected) => {
   adapter(() => ({ code: 409, message }))
   await expect(tools.list()).rejects.toThrow(expected)
+})
+it('Dashboard 统计读取管理接口', async () => {
+  adapter(() => ({ code: 200, data: { toolTotal: 3 } }))
+  await expect(getStats()).resolves.toEqual({ toolTotal: 3 })
+  expect(request.defaults.adapter.mock.calls[0][0].url).toBe('/admin/dashboard/stats')
+})
+it.each([
+  ['updateStatus', '/admin/tools/8/status', { status: 0 }],
+  ['updateSort', '/admin/tools/8/sort', { sortOrder: 4 }],
+])('%s 使用 CSRF 保护的独立更新接口', async (action, path, payload) => {
+  adapter((config) => ({
+    code: 200,
+    data: config.url.endsWith('/csrf')
+      ? { headerName: 'X-Test-CSRF', token: 'fixture-token' }
+      : { id: 8 },
+  }))
+  await tools[action](8, Object.values(payload)[0])
+  const calls = request.defaults.adapter.mock.calls.map(([config]) => config)
+  expect(calls.map((config) => config.url)).toEqual(['/admin/auth/csrf', path])
+  expect(calls[1].method).toBe('put')
+  expect(calls[1].headers.get('X-Test-CSRF')).toBe('fixture-token')
+  expect(JSON.parse(calls[1].data)).toEqual(payload)
 })

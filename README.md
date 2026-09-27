@@ -2,11 +2,21 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.12：工具生态体验优化**，保留原有功能和后端 API。
+当前已实现 **Phase 11.13：管理员后台增强**，保留原有认证流程和公开资源 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
-已开放管理员登录、后台 Dashboard，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.13：管理员后台增强
+
+- `/admin/tools` 显示名称、slug、分类、状态、排序和创建时间；可按名称或 slug 搜索，按分类、状态筛选。分类统计直接汇总当前管理列表中的分类与工具数量，不新增分类表。
+- 工具行内可确认启用或关闭，并单独保存 `sortOrder`（0～1000000）。保存后重新读取后台列表；公开 `/api/tools` 已按 `sort_order ASC, id ASC` 查询，状态和排序更新在后续请求中生效。
+- `/admin` 从受保护的统计接口显示工具总数、启用数、禁用数，文章总数、已发布数，以及非空工具分类数。统计接口只读取所需列，不加载文章正文。
+- `/admin/articles` 可按草稿或已发布筛选。原 `article` 表没有发布时间字段且本阶段不改表结构，因此“发布时间”列对草稿显示“未发布”，对已发布文章显示“未记录”；创建时间仍单独显示。
+- 新增 `GET /api/admin/dashboard/stats`、`PUT /api/admin/tools/{id}/status` 和 `PUT /api/admin/tools/{id}/sort`。成功仍返回统一 `ApiResponse`；写请求继续使用 Session 和 CSRF。无需执行 SQL 迁移。
+
+实现、测试及部署说明见 [Phase 11.13 报告](PHASE_11.13_REPORT.md)。
 
 ## Phase 11.12：工具生态体验优化
 
@@ -408,7 +418,7 @@ URL 防火墙仅为既有的精确 `GET /api/tools/%25`（字面 `%` slug）保�
 `/admin/login` 提供用户名、密码、loading 和安全错误提示；`/admin` 显示基础欢迎信息和退出操作。
 进入后台或登录页由路由守卫调用 `/me` 检查 Session，刷新同样从服务端恢复，不信任内存或持久化 boolean。
 后台请求返回 401 时清理运行时状态、跳转登录并提示重新登录；网络失败不放行后台，不无限重试。
-退出先完成后端 logout，成功后才清理状态和跳转。Dashboard 提供内容管理入口，不展示假统计。
+退出先完成后端 logout，成功后才清理状态和跳转。Dashboard 从受保护的统计接口读取真实数据。
 
 后端测试覆盖真实 CSRF 往返、登录 / me / logout、Session ID 轮换、旧 CSRF 失效、Cookie 配置、错误响应和公开 API 回归。
 前端测试覆盖表单、loading、CSRF 顺序与请求头、服务端认证恢复、路由守卫、失效跳转和退出。
@@ -435,6 +445,12 @@ POST / PUT / DELETE 必须携带 CSRF；前端每次写入先 GET `/api/admin/au
 | Windows | GET `/api/admin/windows` | GET `/api/admin/windows/{id}` | POST `/api/admin/windows` | PUT `/api/admin/windows/{id}` | DELETE `/api/admin/windows/{id}` |
 | Tool | GET `/api/admin/tools` | GET `/api/admin/tools/{id}` | POST `/api/admin/tools` | PUT `/api/admin/tools/{id}` | DELETE `/api/admin/tools/{id}` |
 | Article | GET `/api/admin/articles` | GET `/api/admin/articles/{id}` | POST `/api/admin/articles` | PUT `/api/admin/articles/{id}` | DELETE `/api/admin/articles/{id}` |
+
+Phase 11.13 另提供 `GET /api/admin/dashboard/stats`，返回 `toolTotal`、`toolEnabled`、
+`toolDisabled`、`articleTotal`、`articlePublished`、`categoryCount`。工具独立写入接口为
+`PUT /api/admin/tools/{id}/status`，请求体 `{"status":0|1}`；
+`PUT /api/admin/tools/{id}/sort`，请求体 `{"sortOrder":0..1000000}`。
+两个写入接口均需管理员 Session 和有效 CSRF，缺少资源返回 404，非法请求体返回 400。
 
 独立 Admin Controller → Admin Service → 既有 Mapper；请求使用 SaveRequest DTO，
 响应使用 Admin VO，均复用 `ApiResponse`，不直接暴露 Entity。成功返回 200，删除的 data 为 null。

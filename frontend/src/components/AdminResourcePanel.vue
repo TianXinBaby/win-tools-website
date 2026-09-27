@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElButton, ElDialog, ElMessage, ElMessageBox } from 'element-plus'
 import 'element-plus/theme-chalk/el-dialog.css'
 import 'element-plus/theme-chalk/el-overlay.css'
@@ -13,8 +13,13 @@ const props = defineProps({
   fields: { type: Array, required: true },
   columns: { type: Array, required: true },
   article: Boolean,
+  toolControls: Boolean,
 })
 const rows = ref([])
+const search = ref('')
+const categoryFilter = ref('')
+const statusFilter = ref('all')
+const sortDrafts = ref({})
 const loading = ref(false)
 const busy = ref(false)
 const submitting = ref(false)
@@ -23,12 +28,35 @@ const formError = ref('')
 const dialog = ref(false)
 const current = ref({})
 const formKey = ref(0)
+const categories = computed(() => {
+  const counts = new Map()
+  for (const row of rows.value) {
+    if (row.category && !row.category.trim()) continue
+    if (row.category) counts.set(row.category, (counts.get(row.category) || 0) + 1)
+  }
+  return [...counts].map(([name, count]) => ({ name, count }))
+})
+const visibleRows = computed(() => {
+  const keyword = search.value.trim().toLocaleLowerCase()
+  return rows.value.filter((row) => {
+    if (statusFilter.value !== 'all' && row.status !== Number(statusFilter.value)) return false
+    if (props.toolControls) {
+      return (
+        (!categoryFilter.value || row.category === categoryFilter.value) &&
+        (!keyword ||
+          [row.name, row.slug].some((value) => value?.toLocaleLowerCase().includes(keyword)))
+      )
+    }
+    return true
+  })
+})
 
 async function load() {
   loading.value = true
   errorMessage.value = ''
   try {
     rows.value = await props.api.list()
+    sortDrafts.value = Object.fromEntries(rows.value.map((row) => [row.id, row.sortOrder]))
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -90,6 +118,48 @@ async function remove(row) {
     busy.value = false
   }
 }
+async function toggleStatus(row) {
+  if (busy.value || loading.value) return
+  busy.value = true
+  errorMessage.value = ''
+  const nextStatus = row.status === 1 ? 0 : 1
+  try {
+    await ElMessageBox.confirm(
+      `确定${nextStatus === 1 ? '启用' : '关闭'}“${row.name}”吗？`,
+      '状态确认',
+      { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' },
+    )
+    await props.api.updateStatus(row.id, nextStatus)
+    ElMessage.success('状态已更新')
+    await load()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close')
+      errorMessage.value = error.message || '状态更新失败，请重试。'
+  } finally {
+    busy.value = false
+  }
+}
+async function saveSort(row) {
+  if (busy.value || loading.value) return
+  const raw = String(sortDrafts.value[row.id])
+  const sortOrder = Number(raw)
+  if (!/^\d+$/.test(raw) || !Number.isInteger(sortOrder) || sortOrder > 1000000) {
+    errorMessage.value = '排序值必须是 0 到 1000000 之间的整数。'
+    return
+  }
+  if (sortOrder === row.sortOrder) return
+  busy.value = true
+  errorMessage.value = ''
+  try {
+    await props.api.updateSort(row.id, sortOrder)
+    ElMessage.success('排序已更新')
+    await load()
+  } catch (error) {
+    errorMessage.value = error.message || '排序更新失败，请重试。'
+  } finally {
+    busy.value = false
+  }
+}
 function beforeClose(done) {
   if (!submitting.value) done()
 }
@@ -107,6 +177,39 @@ onMounted(load)
     </div>
     <p v-if="errorMessage" role="alert">{{ errorMessage }}</p>
     <p v-if="loading" role="status">正在加载…</p>
+    <div v-if="toolControls || article" class="admin-filters">
+      <label v-if="toolControls" for="admin-tool-search">
+        搜索工具
+        <input id="admin-tool-search" v-model="search" type="search" placeholder="名称或 slug" />
+      </label>
+      <label v-if="toolControls" for="admin-category-filter">
+        分类
+        <select id="admin-category-filter" v-model="categoryFilter">
+          <option value="">全部分类</option>
+          <option v-for="category in categories" :key="category.name" :value="category.name">
+            {{ category.name }}
+          </option>
+        </select>
+      </label>
+      <label for="admin-status-filter">
+        状态
+        <select id="admin-status-filter" v-model="statusFilter">
+          <option value="all">全部状态</option>
+          <option value="1">{{ article ? '已发布' : '启用' }}</option>
+          <option value="0">{{ article ? '草稿' : '禁用' }}</option>
+        </select>
+      </label>
+    </div>
+    <section v-if="toolControls" class="category-summary" aria-label="工具分类统计">
+      <h2>分类统计</h2>
+      <ul v-if="categories.length">
+        <li v-for="category in categories" :key="category.name">
+          <span>{{ category.name }}</span
+          ><strong>{{ category.count }} 个工具</strong>
+        </li>
+      </ul>
+      <p v-else>暂无分类</p>
+    </section>
     <div class="table-scroll" tabindex="0" :aria-label="title + '管理列表'">
       <table>
         <thead>
@@ -116,21 +219,50 @@ onMounted(load)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.id">
-            <td v-for="column in columns" :key="column.key">
-              {{
-                column.key === 'status'
-                  ? row.status === 1
-                    ? article
-                      ? '已发布'
-                      : '启用'
-                    : article
-                      ? '草稿'
-                      : '禁用'
-                  : (row[column.key] ?? '—')
-              }}
-            </td>
+          <tr v-for="row in visibleRows" :key="row.id">
+            <template v-for="column in columns" :key="column.key">
+              <td v-if="toolControls && column.key === 'sortOrder'">
+                <div class="sort-control">
+                  <input
+                    :value="sortDrafts[row.id]"
+                    :aria-label="`排序值：${row.name}`"
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    step="1"
+                    @input="sortDrafts[row.id] = $event.target.value"
+                  />
+                  <ElButton :disabled="loading || busy" data-action="sort" @click="saveSort(row)"
+                    >保存排序</ElButton
+                  >
+                </div>
+              </td>
+              <td v-else>
+                {{
+                  column.key === 'status'
+                    ? row.status === 1
+                      ? article
+                        ? '已发布'
+                        : '启用'
+                      : article
+                        ? '草稿'
+                        : '禁用'
+                    : column.key === 'publishedAt'
+                      ? row.status === 1
+                        ? '未记录'
+                        : '未发布'
+                      : (row[column.key] ?? '—')
+                }}
+              </td>
+            </template>
             <td class="row-actions">
+              <ElButton
+                v-if="toolControls"
+                :disabled="loading || busy"
+                data-action="status"
+                @click="toggleStatus(row)"
+                >{{ row.status === 1 ? '关闭' : '启用' }}</ElButton
+              >
               <ElButton :disabled="loading || busy" data-action="edit" @click="edit(row)"
                 >编辑</ElButton
               >
@@ -143,8 +275,10 @@ onMounted(load)
               >
             </td>
           </tr>
-          <tr v-if="!loading && !rows.length">
-            <td :colspan="columns.length + 1">暂无数据</td>
+          <tr v-if="!loading && !visibleRows.length">
+            <td :colspan="columns.length + 1">
+              {{ rows.length ? '没有符合条件的数据' : '暂无数据' }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -186,6 +320,52 @@ onMounted(load)
 .admin-toolbar h1 {
   margin-right: auto;
 }
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.admin-filters label {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+}
+.admin-filters input,
+.admin-filters select,
+.sort-control input {
+  border: 1px solid #b9c6d8;
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+.category-summary {
+  margin-bottom: 20px;
+}
+.category-summary ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.category-summary li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sort-control input {
+  width: 100px;
+}
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
@@ -211,7 +391,7 @@ th {
   white-space: nowrap;
 }
 .row-actions {
-  min-width: 160px;
+  min-width: 220px;
   white-space: nowrap;
 }
 [role='alert'] {

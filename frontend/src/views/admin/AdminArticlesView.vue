@@ -74,6 +74,10 @@ const columns = [
     label: '状态',
   },
   {
+    key: 'publishedAt',
+    label: '发布时间',
+  },
+  {
     key: 'viewCount',
     label: '浏览量',
   },

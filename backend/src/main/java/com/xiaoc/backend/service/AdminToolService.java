@@ -65,6 +65,22 @@ public class AdminToolService {
     }
 
     @Transactional
+    public AdminToolVO updateStatus(long id, int status) {
+        require(id);
+        mapper.update(null, new LambdaUpdateWrapper<Tool>()
+                .eq(Tool::getId, id).set(Tool::getStatus, status));
+        return detail(id);
+    }
+
+    @Transactional
+    public AdminToolVO updateSort(long id, int sortOrder) {
+        require(id);
+        mapper.update(null, new LambdaUpdateWrapper<Tool>()
+                .eq(Tool::getId, id).set(Tool::getSortOrder, sortOrder));
+        return detail(id);
+    }
+
+    @Transactional
     public void delete(long id) {
         if (mapper.deleteById(id) == 0) {
             throw new ResourceNotFoundException("Tool resource not found");

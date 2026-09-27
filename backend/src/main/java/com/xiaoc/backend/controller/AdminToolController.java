@@ -2,6 +2,8 @@ package com.xiaoc.backend.controller;
 
 import com.xiaoc.backend.common.ApiResponse;
 import com.xiaoc.backend.dto.AdminToolSaveRequest;
+import com.xiaoc.backend.dto.AdminToolSortRequest;
+import com.xiaoc.backend.dto.AdminToolStatusRequest;
 import com.xiaoc.backend.service.AdminToolService;
 import com.xiaoc.backend.vo.AdminToolVO;
 import jakarta.validation.Valid;
@@ -36,6 +38,18 @@ public class AdminToolController {
     public ApiResponse<AdminToolVO> update(@PathVariable long id,
                                           @Valid @RequestBody AdminToolSaveRequest request) {
         return ApiResponse.success(service.update(id, request));
+    }
+
+    @PutMapping("/{id}/status")
+    public ApiResponse<AdminToolVO> updateStatus(@PathVariable long id,
+                                                 @Valid @RequestBody AdminToolStatusRequest request) {
+        return ApiResponse.success(service.updateStatus(id, request.status()));
+    }
+
+    @PutMapping("/{id}/sort")
+    public ApiResponse<AdminToolVO> updateSort(@PathVariable long id,
+                                               @Valid @RequestBody AdminToolSortRequest request) {
+        return ApiResponse.success(service.updateSort(id, request.sortOrder()));
     }
 
     @DeleteMapping("/{id}")

@@ -86,9 +86,13 @@ const columns = [
     key: 'sortOrder',
     label: '排序',
   },
+  {
+    key: 'createdAt',
+    label: '创建时间',
+  },
 ]
 </script>
 
 <template>
-  <AdminResourcePanel title="工具" :api="api" :fields="fields" :columns="columns" />
+  <AdminResourcePanel title="工具" :api="api" :fields="fields" :columns="columns" tool-controls />
 </template>
