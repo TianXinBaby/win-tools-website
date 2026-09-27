@@ -14,7 +14,7 @@ Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper
 
 - 前端使用 Ubuntu、Node.js 24.20.0 和 `frontend/package-lock.json` 对应的 npm 缓存，依次运行 `npm install`、`npm test`、`npm run lint`、`npm run format:check`、`npm run build`。
 - 后端使用 Ubuntu、Temurin Java 18 和 Maven 缓存，在 `backend/` 运行 `./mvnw test`、`./mvnw verify`；`verify` 还会构建 Jar。现有 Wrapper 在 Git 中没有可执行位，CI 会先为运行副本执行 `chmod +x ./mvnw`。
-- 任一步失败，所属 workflow 即失败。要让失败检查阻止合并，还需在目标分支（通常为 `main`）的 GitHub 分支保护或 ruleset 中，将 `frontend`、`backend` 检查设为必需。当前私有仓库的这两项设置经 GitHub API 查询均返回 403，提示需升级 GitHub Pro 或将仓库公开；因此目前检查失败尚不能强制阻止合并。此阶段不执行部署。
+- 任一步失败，所属 workflow 即失败。要让失败检查阻止合并，还需在目标分支（通常为 `main`）的 GitHub 分支保护或 ruleset 中，将 `frontend`、`backend` 检查设为必需。当前私有仓库的这两项设置经 GitHub API 查询均返回 403；已决定保持私有，待升级 GitHub Pro 后启用必需检查。在此之前，检查失败尚不能强制阻止合并。此阶段不执行部署。
 
 具体配置、验证记录及后续部署建议见 [Phase 11.14.1 报告](PHASE_11.14.1_REPORT.md)。
 

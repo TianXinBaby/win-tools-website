@@ -48,9 +48,16 @@ Git 记录的 `backend/mvnw` 缺少 Unix 可执行位，因此后端 job 在调�
 
 ## 7. GitHub 验证结果
 
-Frontend CI 与 Backend CI 的 GitHub 运行结果待推送后核验。
+`1ab451fbce2f55c434ed52f34f124115f029662d` 推送至 `feature/phase-11.14.1-cicd` 后，GitHub 自动触发两次 `push` workflow，均已完成且结论为 **success**：
 
-合并门禁当前无法启用：仓库为私有仓库，使用当前认证凭据查询 GitHub 的 `branches/main/protection` 与 `rulesets` API 均返回 HTTP 403，响应为 `Upgrade to GitHub Pro or make this repository public to enable this feature.` 因此本阶段创建的 workflow 能报告失败，但目前**不能保证失败时阻止合并**。依据 [GitHub 分支保护可用性说明](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)，需在保持私有并升级 Pro（或更高计划）与明确授权公开仓库之间作出选择，然后将 `frontend` 和 `backend` 设为 `main` 的必需检查。仓库可见性和付费计划未作改动。
+| Workflow | GitHub 运行 | 已通过的关键步骤 |
+| --- | --- | --- |
+| Frontend CI | [运行 #36317358097](https://github.com/TianXinBaby/win-tools-website/actions/runs/36317358097) | Node.js 与 npm 缓存设置、`npm install`、`npm test`、lint、格式检查、构建 |
+| Backend CI | [运行 #36317358098](https://github.com/TianXinBaby/win-tools-website/actions/runs/36317358098) | Java 18 与 Maven 缓存设置、Wrapper 可执行权限、`./mvnw test`、`./mvnw verify` |
+
+`pull_request` 触发条件通过 actionlint 校验；本阶段没有创建测试用 Pull Request，因此没有单独的 PR 运行记录。
+
+合并门禁当前无法启用：仓库为私有仓库，使用当前认证凭据查询 GitHub 的 `branches/main/protection` 与 `rulesets` API 均返回 HTTP 403，响应为 `Upgrade to GitHub Pro or make this repository public to enable this feature.` 因此本阶段创建的 workflow 能报告失败，但目前**不能保证失败时阻止合并**。依据 [GitHub 分支保护可用性说明](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)，已决定保持仓库私有；待 GitHub Pro 升级完成，再将 `frontend` 和 `backend` 设为 `main` 的必需检查。仓库可见性和付费计划未作改动。
 
 ## 8. 后续自动部署建议
 
