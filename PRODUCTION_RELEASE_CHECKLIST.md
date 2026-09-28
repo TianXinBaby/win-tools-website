@@ -23,6 +23,7 @@
 - [ ] 核对新 Jar 与 `frontend/dist/index.html`、`frontend/dist/assets/` 存在且非空，记录摘要、文件数和体积；前端只部署 `dist/` 内容。
 - [ ] 阅读 [SQL 清单](PRODUCTION_SQL_CHECKLIST.md)，逐个确认生产已执行/缺失的脚本。不要导入 `seed-dev.sql`，不要在未知现有结构上把 `init.sql` 当作迁移脚本。
 - [ ] 记录 `df -h`、`free -h`、Swap、当前 `systemctl status win-tools-backend nginx`、`sudo bash deploy/status-check.sh`；检查发布和双份备份所需空间。
+- [ ] 核对生产实际 Java 18 版本与启动日志。GitHub runner 上 Java 18 曾因读取 cgroup 信息导致系统指标 Bean 初始化失败；CI 使用仅限测试步骤的 JVM 兼容参数，不能据此推断生产 JVM 一定可启动，也不要直接复制该参数到生产。
 - [ ] 核对部署配置、systemd EnvironmentFile、日志目录和 TLS 证书路径的存在及权限；不把文件内容、密码或私钥写入记录。确认变更窗口和回滚负责人与快照位置。
 
 ## B. 备份

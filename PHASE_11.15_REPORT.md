@@ -30,7 +30,11 @@
 
 ## 4. CI 状态
 
-`.github/workflows/frontend-ci.yml` 和 `backend-ci.yml` 均存在，保留 `push` 与 `pull_request` 触发，没有自动部署步骤。前端 CI 使用 Node.js 24.20.0 并执行 install/test/lint/format/build；后端 CI 使用 Temurin Java 18 并执行 test/verify。本地 actionlint 校验通过。此前 Phase 11.14.1 报告记录过该阶段分支的两条 GitHub Actions 成功运行；**本 Phase 11.15 提交自己的远端运行结论需要在推送后按发布清单另行核对**，旧运行不能代替当前 commit 的 CI 结果。私有仓库尚未确认有 required status checks 门禁。
+`.github/workflows/frontend-ci.yml` 和 `backend-ci.yml` 均存在，保留 `push` 与 `pull_request` 触发，没有自动部署步骤。前端 CI 使用 Node.js 24.20.0 并执行 install/test/lint/format/build；后端 CI 使用 Temurin Java 18 并执行 test/verify。本地 actionlint 校验通过。
+
+首次推送 `fd5cbe1` 后，[Frontend CI](https://github.com/TianXinBaby/win-tools-website/actions/runs/36434545957) 成功；[Backend CI](https://github.com/TianXinBaby/win-tools-website/actions/runs/36434545741) 在 `./mvnw test` 失败。日志中的首个根因是 Java 18 在 GitHub Linux runner 读取 cgroup 信息时，Actuator `processorMetrics` 创建触发 `anyController` 为空的异常；随后 229 项测试出现 ApplicationContext 加载连锁错误。本地 Windows 248 项测试通过，无法替代 Linux CI。
+
+经用户选择，后端 CI 的 `test` 与 `verify` 两个步骤各自通过 `JDK_JAVA_OPTIONS=-XX:-UseContainerSupport` 关闭该 runner 中的 JVM 容器资源探测，不更换 Java 18、不跳过测试、不修改生产 JVM 或健康检查配置。修复提交 `ed86238` 的 [Frontend CI](https://github.com/TianXinBaby/win-tools-website/actions/runs/36435273591) 与 [Backend CI](https://github.com/TianXinBaby/win-tools-website/actions/runs/36435273633) 均已成功；后端 `test` 与 `verify` 步骤均完成。最终文档提交仍需按发布清单核对自身 CI；生产 Java 18 启动与 Actuator 健康检查仍是现场阻塞验收项。私有仓库尚未确认有 required status checks 门禁。
 
 ## 5. SQL 检查结果
 
