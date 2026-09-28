@@ -2,11 +2,15 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.14.4：生产备份与恢复**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
+当前已实现 **Phase 11.14.5：生产性能基线与轻量优化**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Phase 11.14.5：生产性能基线与轻量优化
+
+前端构建体积和主要 chunk 已记录在 [阶段报告](PHASE_11.14.5_REPORT.md)；现有 Admin、娱乐、媒体、文章路由均按需加载，未改动业务代码。Nginx 示例为 Vite 哈希 JS/CSS 设置一年 immutable 缓存、对 HTML 要求重新验证，并对可压缩内容启用 gzip；API、管理员和 CSRF 响应仍由后端决定缓存头。systemd 示例保留 256 MiB 初始堆和 768 MiB 最大堆。只读、单次请求的 [性能检查脚本](deploy/performance-check.sh) 和生产验收方法见 [部署说明](deploy/README.md)。这些配置仍需在真实 Ubuntu/Nginx 环境验证。
 
 ## Phase 11.14.4：生产备份与恢复
 

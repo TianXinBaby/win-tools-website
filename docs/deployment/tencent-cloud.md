@@ -178,7 +178,8 @@ curl --fail http://127.0.0.1:8080/actuator/health
 
 确认 `/usr/bin/java` 为 Java 18 后再启动。service 使用 User/Group=win-tools，
 WorkingDirectory=/opt/win-tools/backend，EnvironmentFile=/etc/win-tools/win-tools.env，
-ExecStart 为 `java -jar`，Restart=on-failure，NoNewPrivileges、PrivateTmp、UMask=0077。
+ExecStart 为 `java -Xms256m -Xmx768m -jar`，Restart=on-failure，NoNewPrivileges、PrivateTmp、UMask=0077。
+当前约 2 GiB RAM/2 GiB Swap 的主机保持 768 MiB 最大堆；上线后用 `free -h`、`ps aux --sort=-%mem` 和 journal 观察整机内存及启动情况，未经测量不扩大 Xmx。
 未设置破坏数据库网络访问的 sandbox。MySQL 不可用时排查连接；`/api/health` 是存活检查，Actuator health 还包含框架默认健康贡献者。
 
 ## 域名、HTTPS 与 Nginx
@@ -200,7 +201,7 @@ sudo systemctl reload nginx
 替换所有 example.com 和证书路径，确认 conf.d 在 nginx.conf 的 **http {}** 中包含，检查默认站点和域名冲突。
 Nginx 配置采用 TLS 1.2/1.3；80 只 301 跳转到固定 HTTPS 域名，后台不得长期用 HTTP 登录。
 `/api` 和 `/api/` 原路径转发至回环 8080，不能末尾添加斜线导致去掉 `/api`。
-`try_files $uri $uri/ /index.html` 支持 SPA 深链接，缺失 assets 返回 404，index.html 不长期缓存。
+`try_files $uri $uri/ /index.html` 支持 SPA 深链接，缺失 assets 返回 404，index.html 使用 `no-cache` 重新验证；当前 Vite 产出的哈希 JS/CSS 使用一年 `immutable` 缓存，文本资源按需 gzip。不要把未哈希文件放进 `/assets/`。
 `client_max_body_size 1m` 容纳现有文章正文 JSON；本地图片处理不上传。
 `/actuator` 与 `/actuator/` 被 Nginx 明确返回 404，只可在服务器回环地址访问 Actuator。
 
@@ -224,6 +225,7 @@ Nginx 配置采用 TLS 1.2/1.3；80 只 301 跳转到固定 HTTPS 域名，后�
   Nginx 重写 Host/X-Real-IP/X-Forwarded-*，清除 Forwarded、X-Forwarded-Prefix，避免客户端伪造转发链。
   当前单层公网 Nginx 使用 `$remote_addr` 覆盖 X-Forwarded-For；未来加 CDN/LB 必须重新设计可信代理范围。
 - 前后端同源，不增加宽松 CORS。Nginx 不启用 API proxy cache，保留认证响应的 no-store。
+- 性能检查采用 [只读脚本](../../deploy/performance-check.sh) 单次测量响应时间、服务、内存和磁盘；缓存头、gzip 与 `nginx -t` 的验收命令见 [部署脚本说明](../../deploy/README.md)。
 
 配置依据：[Spring Boot 3.5 反向代理](https://docs.spring.io/spring-boot/3.5/how-to/webserver.html)、
 [Nginx 响应头及继承规则](https://nginx.org/en/docs/http/ngx_http_headers_module.html)。

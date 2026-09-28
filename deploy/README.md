@@ -35,6 +35,7 @@ sudo bash deploy/health-check.sh
 | `backend-deploy.sh` | `./mvnw clean package`；保存当前 Jar 与静态目录，停止服务后原子替换 Jar，启动服务 | 重试完整健康检查 |
 | `health-check.sh` | 不修改文件 | 验证 systemd active、HTTPS 首页、本机 `/api/health` 和 `/actuator/health` 都返回 HTTP 200 与 UP；任一失败返回非零 |
 | `status-check.sh` | 不修改文件 | 显示 backend 和 Nginx 服务、回环 8080 端口、磁盘与内存；服务或端口异常时返回非零 |
+| `performance-check.sh` | 不修改文件 | 顺序测一次 HTTPS 首页、公开工具 API、回环健康 API 与 Actuator；显示响应时间、服务状态、内存和磁盘；非 200 时返回非零 |
 
 构建和预检查通过后，部署脚本才会要求分别输入 `DEPLOY FRONTEND` 或 `DEPLOY BACKEND`。确认前不会切换线上文件。`set -euo pipefail` 使失败立即停止；后端健康检查默认每 2 秒尝试一次，最多 30 次。`/api/health` 只代表进程存活；Actuator health 包括框架默认健康贡献者（如数据源和磁盘空间），发布后仍须核验公开 API 与管理流程。
 
@@ -58,6 +59,36 @@ sudo bash deploy/rollback.sh 2026-09-27-220012123456789-12345
 若线上前端目录或 Jar 已因中断而缺失，仍可指定完整快照回滚；脚本将可用的现场文件保存到新快照，并以 `.partial` 标记不完整现场。若回滚本身中断，检查 `BACKUP_DIR` 中的完整快照及暂存目录，确认当前前端目录和 Jar 后再操作。不要在未核对目标时反复执行默认回滚；回滚产生的新完整快照可能成为下一次默认目标。服务重启会使内存 Session 失效，管理员需要重新登录。
 
 回滚到 Phase 11.14.2 或更早的 Jar 时，它没有 `/actuator/health`，新版严格健康检查会返回非零；即使旧服务和原有 `/api/health` 已恢复，回滚脚本也会报告失败。此时人工核对 systemd、HTTPS 首页、`/api/health`、公开数据 API 与管理流程，再决定是否继续使用旧版；不要把缺少 Actuator 误判为旧版业务故障。
+
+## 性能检查与生产验收
+
+先在 `frontend/` 运行 `npm run build`，再用 `du -sb dist`、`find dist -type f -name '*.js' -printf '%s %p\n' | sort -nr | head` 记录构建体积和大 chunk。比较同一 Node/npm 版本、同一锁文件和相同构建命令的结果。`performance-check.sh` 使用现有受信任的 `deploy/config.sh`，每个 URL 仅发一个 GET 请求，不并发、不写文件、不发送管理员凭据；`total` 和 `first_byte` 是 curl 测得的秒数，适合重复抽样，不能代替真实浏览器加载指标。
+
+```sh
+cd /opt/win-tools
+bash deploy/performance-check.sh
+free -h
+ps aux --sort=-%mem | head -n 15
+sudo journalctl -u win-tools-backend -n 100 --no-pager
+curl --fail http://127.0.0.1:8080/actuator/health
+sudo nginx -t
+```
+
+systemd 示例为 `-Xms256m -Xmx768m`，符合当前约 2 GiB RAM/2 GiB Swap 的已知配置；不要未经现场内存和 GC 数据评估就扩大 Xmx。检查 JVM 常驻内存时还要看 MySQL、Nginx 和系统剩余内存。Actuator 只提供有限健康状态，不提供堆内存指标。
+
+Nginx 在 `http {}` 中用 URI 映射缓存头：当前 Vite 构建的 `/assets/` 哈希 JS/CSS 返回 `Cache-Control: public, max-age=31536000, immutable`；首页及 SPA 回退到的 `index.html` 返回 `no-cache`，更新时可重新验证。其他路径不由该映射设置缓存头，API 保留后端原有缓存策略，管理员/CSRF 响应的 `no-store` 不被覆盖。gzip 对文本、JS、CSS、JSON 和 SVG 生效（至少 1024 字节）；服务器级安全头继续继承到所有 location。部署前须确认 `/assets/` 只放内容哈希构建文件，避免把未改名的资源长期缓存。变更实际配置后先 `sudo nginx -t`，成功后再 reload。
+
+```sh
+ASSET=$(basename "$(find frontend/dist/assets -maxdepth 1 -type f -name 'index-*.js' -print -quit)")
+curl -sS -o /dev/null -D - https://example.com/
+curl -sS -o /dev/null -D - https://example.com/admin/windows
+curl -sS -o /dev/null -D - -H 'Accept-Encoding: gzip' "https://example.com/assets/$ASSET"
+curl -sS -o /dev/null -D - https://example.com/api/admin/auth/me
+curl -sS -o /dev/null -D - https://example.com/actuator/health
+sudo bash deploy/health-check.sh
+```
+
+核对 HTML 的 `no-cache`、哈希 JS 的 `immutable` 与 `Content-Encoding: gzip`、未认证管理员响应不被缓存、公开 Actuator 为 404、深链接返回页面、HTTP 跳转 HTTPS、麦克风 Permissions-Policy 与现有安全头。最后在浏览器验收后台和工具页面及深链接刷新，检查 Network 中没有失效 chunk。不要将上述响应头检查替代真实业务、数据库和 TLS 验收。
 
 ## 本地验证与边界
 

@@ -9,7 +9,7 @@ Group=win-tools
 WorkingDirectory=/opt/win-tools/backend
 EnvironmentFile=/etc/win-tools/win-tools.env
 Environment=WIN_TOOLS_LOG_DIR=/opt/win-tools/logs
-ExecStart=/usr/bin/java -jar /opt/win-tools/backend/backend.jar
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/win-tools/backend/backend.jar
 Restart=on-failure
 RestartSec=5
 SuccessExitStatus=143

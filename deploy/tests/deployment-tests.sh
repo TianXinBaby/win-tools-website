@@ -60,6 +60,13 @@ MOCK
 cat > "$mock_bin/curl" <<'MOCK'
 #!/usr/bin/env bash
 for arg in "$@"; do url=$arg; done
+printf 'curl %s\n' "$url" >> "$MOCK_LOG"
+if [[ "$*" == *'%{time_total}'* ]]; then
+  status=200
+  if [[ "$url" == https://site.test/api/tools ]]; then status=${MOCK_PERF_API_STATUS:-200}; fi
+  printf '%s 0.012 0.004' "$status"
+  exit 0
+fi
 if [[ "$url" == https://site.test/ ]]; then
   printf '%s' "${MOCK_SITE_STATUS:-200}"
 elif [[ "$url" == http://127.0.0.1:8080/actuator/health ]]; then
@@ -156,9 +163,37 @@ export MOCK_NGINX_ACTIVE=0
 expect_failure '' bash "$repo_dir/deploy/status-check.sh"
 unset MOCK_NGINX_ACTIVE
 
+performance_log_start=$(wc -l < "$MOCK_LOG")
+bash "$repo_dir/deploy/performance-check.sh" > "$test_root/performance.log"
+tail -n "+$((performance_log_start + 1))" "$MOCK_LOG" > "$test_root/performance-commands.log"
+[[ $(grep -c '^curl ' "$test_root/performance-commands.log") -eq 4 ]] || fail 'Performance check must make exactly four requests'
+grep -Fq 'curl https://site.test/api/tools' "$test_root/performance-commands.log" || fail 'Public API timing is missing'
+grep -Fq 'curl http://127.0.0.1:8080/actuator/health' "$test_root/performance-commands.log" || fail 'Actuator timing is missing'
+if grep -Eq '^systemctl (start|stop|restart|reload|enable|disable)' "$test_root/performance-commands.log"; then
+  fail 'Performance check changed a service'
+fi
+grep -q 'HTTPS homepage: HTTP 200 total=0.012s first_byte=0.004s' "$test_root/performance.log" || fail 'Homepage timing is missing'
+grep -q 'Memory:' "$test_root/performance.log" || fail 'Performance memory check is missing'
+grep -q 'Disk (' "$test_root/performance.log" || fail 'Performance disk check is missing'
+export MOCK_PERF_API_STATUS=503
+expect_failure '' bash "$repo_dir/deploy/performance-check.sh"
+grep -q 'Public tools API: HTTP 503' "$test_root/output" || fail 'Performance check ignored an API failure'
+unset MOCK_PERF_API_STATUS
+
 nginx_config="$repo_dir/deploy/nginx/win-tools.conf.example"
 grep -Fq '/var/log/nginx/win-tools-access.log win_tools_ops' "$nginx_config" || fail 'Safe Nginx access log is missing'
 grep -Fq 'location ^~ /actuator/' "$nginx_config" || fail 'Public Actuator block is missing'
+grep -Fq 'gzip on;' "$nginx_config" || fail 'Nginx gzip is missing'
+grep -Fq 'max-age=31536000, immutable' "$nginx_config" || fail 'Hashed asset cache is missing'
+grep -Fq '"~^/assets/[^/]+-[A-Za-z0-9_-]{8}\.(js|css)$"' "$nginx_config" || fail 'Hashed asset rule changed'
+grep -Fq '/index.html "no-cache";' "$nginx_config" || fail 'HTML revalidation is missing'
+grep -Fq 'default "";' "$nginx_config" || fail 'Dynamic response cache must remain unset'
+grep -Fq 'add_header Cache-Control $win_tools_cache_control;' "$nginx_config" || fail 'Cache map is not applied'
+grep -Fq 'microphone=(self)' "$nginx_config" || fail 'Microphone policy changed'
+grep -Fq 'try_files $uri $uri/ /index.html;' "$nginx_config" || fail 'SPA fallback changed'
+grep -Fq 'proxy_pass http://127.0.0.1:8080;' "$nginx_config" || fail 'API proxy changed'
+grep -Fq 'return 301 https://example.com$request_uri;' "$nginx_config" || fail 'HTTPS redirect changed'
+grep -Fq 'ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar' "$repo_dir/deploy/systemd/win-tools-backend.service.example" || fail 'JVM memory bounds changed'
 log_format=$(grep '^log_format win_tools_ops ' "$nginx_config")
 [[ "$log_format" != *'$remote_addr'* && "$log_format" != *'$uri'* && "$log_format" != *'$request_uri'* && "$log_format" != *'$http_'* ]] || fail 'Nginx access log includes request or client data'
 
