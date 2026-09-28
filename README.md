@@ -2,11 +2,15 @@
 
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
-当前已实现 **Phase 11.14.5：生产性能基线与轻量优化**；业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
+当前已完成 **Phase 11.15 的本地发布候选检查**；真实服务器验收状态为 **Production Verification Pending**。业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。
 Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper 从数据库读取，使用独立 VO 输出。
 前端提供首页、三类资源列表与详情、404 页面及统一响应式布局。
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
+
+## Production Release / Operations
+
+Phase 11.15 提供 [生产发布清单](PRODUCTION_RELEASE_CHECKLIST.md)、[SQL 发布清单](PRODUCTION_SQL_CHECKLIST.md) 和只读的 [生产 Smoke Test](deploy/production-smoke-test.sh)。现场操作先阅读 [部署与回滚手册](deploy/README.md) 和 [备份恢复手册](backup/README.md)，按清单记录版本、CI、备份、健康、安全、浏览器人工验收及继续/回滚决定。执行结果和未完成的真实生产检查见 [Phase 11.15 报告](PHASE_11.15_REPORT.md)。本阶段没有连接生产服务器，也没有创建正式 Git tag。
 
 ## Phase 11.14.5：生产性能基线与轻量优化
 
@@ -796,3 +800,660 @@ H2 不能证明 MySQL 的排序规则、索引、严格模式或全部 DDL 行�
 Maven Wrapper 使用 Apache 官方的 `only-script` 发行包，保留两个平台脚本和 `.mvn/` 配置，并校验 Maven 下载包的 SHA-256。
 
 后续可在授权的环境中完成真实 MySQL 数据导入、腾讯云上线与域名 HTTPS 验收；操作真实服务器前需明确授权。
+
+## 阶段报告全文（历史记录）
+
+以下按阶段顺序收录原报告正文；原报告文件仍保留。报告中的测试结果、命令和后续建议记录的是各阶段当时的情况，当前状态请先看 README 前文。
+
+- [Phase 11.11.2](#phase-11-11-2)
+- [Phase 11.11.3](#phase-11-11-3)
+- [Phase 11.11.4](#phase-11-11-4)
+- [Phase 11.12](#phase-11-12)
+- [Phase 11.13](#phase-11-13)
+- [Phase 11.14.1](#phase-11-14-1)
+- [Phase 11.14.2](#phase-11-14-2)
+- [Phase 11.14.3](#phase-11-14-3)
+- [Phase 11.14.4](#phase-11-14-4)
+- [Phase 11.14.5](#phase-11-14-5)
+
+<a id="phase-11-11-2"></a>
+<!-- BEGIN PHASE_11.11.2_REPORT.md -->
+### Phase 11.11.2 开发报告
+
+#### 1. 开发内容
+
+在现有 `tool` 表和工具卡片、Vue Router 结构中增加 `fun` 分类的四个工具。功能计算全部在浏览器本地完成；未增加后端 API、数据库表或第三方服务调用。Nginx 示例已有 `try_files $uri $uri/ /index.html`，支持新路由直接访问和刷新。
+
+#### 2. 修改文件列表
+
+| 范围 | 文件 |
+| --- | --- |
+| 工具页面 | `frontend/src/views/tools/fun/` 下四个 Vue 页面 |
+| 本地逻辑 | `frontend/src/utils/tools/fun/` 下昵称、ASCII、转盘、反应时间模块 |
+| 路由与目录 | `frontend/src/router/index.js`、`frontend/src/utils/tools/registry.js`、`frontend/src/views/ToolsView.vue` |
+| 共用 UI | `frontend/src/components/ToolPageHeader.vue`、`frontend/src/assets/main.css` |
+| 目录数据 | `sql/seed-dev.sql`、`sql/phase-11.11.2-fun-tools.sql` |
+| 测试 | `frontend/src/__tests__/funTools.spec.js`、`frontend/src/__tests__/funToolViews.spec.js`、`frontend/src/__tests__/App.spec.js`、`backend/src/test/java/com/xiaoc/backend/mapper/ContentDevSeedTests.java` |
+| 文档 | `README.md`、`frontend/README.md`、本报告 |
+
+#### 3. 新增工具说明
+
+| 工具 | 路由 | 功能与本地数据 |
+| --- | --- | --- |
+| 随机昵称生成器 | `/tools/nickname-generator` | 四类内置词库随机组合、复制；结果只保留在当前页面。 |
+| ASCII艺术生成器 | `/tools/ascii-art` | 5×7 本地映射，支持英文字母、数字、空格和 `. , ! ? - :`，最多 32 个字符；生成、清空、复制。 |
+| 幸运转盘 | `/tools/lucky-wheel` | 输入 2–12 个选项，等大扇区旋转，随机停靠，显示结果并可重新开始。 |
+| 反应速度测试 | `/tools/reaction-test` | 随机等待后点击目标，显示毫秒成绩；仅最佳成绩存入当前浏览器的 `localStorage`。 |
+
+两份 SQL 脚本对四条 `fun` 元数据均按 slug 判断是否缺失，不覆盖管理员已维护的记录；其中独立脚本适用于已有数据库，不会插入其他演示数据。应用不会自动执行脚本，维护者需先在 MySQL 会话中 `USE win_tools;`，再手工导入目录数据。
+
+#### 4. 测试结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `frontend> npm.cmd install` | 通过，依赖已是最新状态。 |
+| `frontend> npm.cmd test` | 通过，14 个文件、408 项测试。 |
+| `frontend> npm.cmd run lint` | 通过，无 ESLint 警告。 |
+| `frontend> npm.cmd run format:check` | 通过，全部匹配 Prettier 格式。 |
+| `frontend> npm.cmd run preview -- --host 127.0.0.1 --port 4173 --strictPort` 后直达四个新路由 | 均返回 HTTP 200 和应用入口 HTML。 |
+| `backend> .\mvnw.cmd test` | 通过，240 项测试。 |
+| `backend> .\mvnw.cmd verify` | 通过，240 项测试，生成可运行 Jar。 |
+
+前端新增测试覆盖四类昵称及随机组合、ASCII 映射与非法输入、转盘解析/随机索引/停靠角度、反应时间和最佳成绩逻辑，以及页面交互、直接路由与目录卡片。后端测试覆盖新目录脚本的字段、重复执行和保留已有数据。
+
+#### 5. 构建结果
+
+`frontend> npm.cmd run build` 通过，Vite 生成四个新页面的独立资源文件。现有 Nginx 示例支持 history 路由回退；本阶段未在真实 MySQL、Nginx 或部署环境执行人工验收。
+
+#### 6. 后续开发建议
+
+将独立目录脚本应用到目标数据库后，按四个新路由逐一用浏览器检查交互与刷新行为；后续娱乐工具批次继续沿用浏览器本地处理和现有 `tool` 元数据结构。
+<!-- END PHASE_11.11.2_REPORT.md -->
+
+<a id="phase-11-11-3"></a>
+<!-- BEGIN PHASE_11.11.3_REPORT.md -->
+### Phase 11.11.3 开发报告
+
+#### 1. 阶段目标
+
+在现有 `fun` 分类中增加四个浏览器本地动画互动工具，继续使用 `tool` 表和现有前后端分离结构，不改数据库结构或 API 格式。四个页面沿用工具标题、卡片主体和说明布局，支持直接访问与刷新。
+
+#### 2. 新增工具列表
+
+| 工具 | 路由 | 功能 |
+| --- | --- | --- |
+| 魔法键盘 | `/tools/magic-keyboard` | 字母、数字、标点和常见特殊键触发按键显示、颜色变化及 Canvas 粒子；可选 Web Audio 本地合成声音，触屏可点击示例键。 |
+| 老电视模拟器 | `/tools/crt-tv` | CSS 黑白滤镜、扫描线、噪点与轻微闪烁，可开关效果。 |
+| FPS测试 | `/tools/fps-test` | `requestAnimationFrame` 测量实时 FPS、Frame Time 和本次平均 FPS，可开始与停止。 |
+| 打字速度测试 | `/tools/typing-test` | 输入英文短文，统计 WPM、正确率和时间；完成后将最佳 WPM 与正确率保存在当前浏览器的 `localStorage`。 |
+
+#### 3. 技术实现说明
+
+- 魔法键盘按键事件过滤重复键、组合键和表单输入；每次生成 20 个粒子，总量最多 160 个。粒子耗尽后停止动画帧；离开页面移除监听、取消帧并关闭音频上下文。声音默认关闭，不加载音频文件。
+- CRT 画面通过 CSS 绘制；关闭效果后移除动画样式。全站已有 `prefers-reduced-motion` 规则，可禁用动效。
+- FPS 测试仅在运行时安排动画帧，统计窗口约一秒；页面离开或标签页隐藏时停止。
+- 打字计时从首个字符开始，仅正确字符计入 WPM，完成或离开页面时清理定时器；输入文本不上传。
+- `sql/phase-11.11.3-fun-tools.sql` 仅插入缺失的四条目录记录，不覆盖现有记录；`sql/seed-dev.sql` 同步增加开发示例。两者均不自动执行，也不建表。
+- 现有 Nginx 示例使用 `try_files $uri $uri/ /index.html`，新路由无需改动服务器配置。
+
+#### 4. 修改文件列表
+
+| 范围 | 文件 |
+| --- | --- |
+| 页面 | `frontend/src/views/tools/fun/MagicKeyboardView.vue`、`CrtTvView.vue`、`FpsTestView.vue`、`TypingTestView.vue` |
+| 本地逻辑 | `frontend/src/utils/tools/fun/magicKeyboard.js`、`fps.js`、`typing.js` |
+| 路由与目录 | `frontend/src/router/index.js`、`frontend/src/utils/tools/registry.js`、`frontend/src/views/ToolsView.vue` |
+| 目录数据 | `sql/phase-11.11.3-fun-tools.sql`、`sql/seed-dev.sql` |
+| 测试 | `frontend/src/__tests__/animationFunTools.spec.js`、`animationFunToolViews.spec.js`、`App.spec.js`、`backend/src/test/java/com/xiaoc/backend/mapper/ContentDevSeedTests.java` |
+| 文档 | `README.md`、`frontend/README.md`、本报告 |
+
+#### 5. 测试结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `frontend> npm.cmd install` | 通过，无新增依赖。 |
+| `frontend> npm.cmd test` | 通过，16 个文件、424 项测试。 |
+| `frontend> npm.cmd run lint` | 通过，无 ESLint 错误或警告。 |
+| `frontend> npm.cmd run format:check` | 通过。 |
+| `backend> .\mvnw.cmd test` | 通过，241 项测试，含 SQL 重复执行与保留已有数据的验证。 |
+| 生产预览直达四个新路由 | 均返回 HTTP 200 和应用入口 HTML；无头 Chrome 直接打开后均渲染正确的页面标题。 |
+
+前端新增测试覆盖按键事件、粒子数量与初始轨迹、音频及动画帧释放、CRT 状态切换、FPS 计算与停止、打字 WPM / 正确率 / 用时 / 最佳成绩，以及新路由和工具卡片。
+
+#### 6. 构建结果
+
+`frontend> npm.cmd run build` 通过，Vite 生成四个新页面的独立资源文件。`backend> .\mvnw.cmd verify` 通过，241 项测试并生成可运行 Jar。
+
+#### 7. 已知问题
+
+无已知功能问题。自动数据库验证使用 H2 MySQL mode，尚未在真实 MySQL 手工导入新脚本；直达与刷新验证使用 Vite 生产预览，尚未在实际 Nginx 环境验收。FPS 数值会受浏览器节流、显示器刷新率和设备负载影响。
+
+#### 8. 后续开发建议
+
+在目标 MySQL 数据库执行 `sql/phase-11.11.3-fun-tools.sql` 后，检查工具目录是否出现四张新卡片；部署时再在真实 Nginx 和移动端浏览器逐页检查视觉效果、声音开关、路由刷新与资源释放。
+<!-- END PHASE_11.11.3_REPORT.md -->
+
+<a id="phase-11-11-4"></a>
+<!-- BEGIN PHASE_11.11.4_REPORT.md -->
+### Phase 11.11.4 开发报告
+
+#### 1. 阶段目标
+
+在现有娱乐工具模块增加四个浏览器本地高级互动工具，沿用 Vue 3、Element Plus、`tool` 表及已有 API。保留之前的八个娱乐工具，不修改数据库结构。
+
+#### 2. 新增工具列表
+
+| 工具 | 路由 | 功能 |
+| --- | --- | --- |
+| Mikutap | `/tools/mikutap` | 点击或键盘触发本地合成音符、颜色变化、Canvas 粒子和圆形波纹。 |
+| 在线钢琴 | `/tools/online-piano` | A S D F G H J 及鼠标点击弹奏 C4–B4，带琴键反馈。 |
+| 随机头像生成器 | `/tools/random-avatar` | 随机组合背景、脸型、眼睛、嘴巴和装饰，预览并下载 SVG。 |
+| 声控弹力球 | `/tools/voice-ball` | 用户点击启动并授权后，本地分析声音大小，驱动球体运动。 |
+
+#### 3. 技术实现说明
+
+- Mikutap 使用 Web Audio API 合成五种音高；每次点击生成 20 个粒子，画面最多保留 160 个粒子和 12 个波纹。没有动画对象时停止安排新帧。
+- 在线钢琴使用预设音符映射、振荡器和音量包络；忽略组合键、重复键与表单输入。
+- 头像由固定图形和配色组合为 SVG，下载使用本地 `data:` URL，不调用头像服务。
+- 声控弹力球仅在点击启动后调用 `getUserMedia`，使用 `AnalyserNode` 的时域数据计算均方根音量。不录音，不上传声音。停止、离开页面或隐藏标签页时取消动画帧、停止音轨并关闭 `AudioContext`；授权等待中停止后，迟到的音轨也会立即关闭。
+- 新工具使用 `/tools/*` 的独立路由，放在通用工具详情路由之前。现有 Nginx `try_files` 规则支持 history 模式直达和刷新。
+- 生产 Nginx 示例的 `Permissions-Policy` 改为 `microphone=(self)`，仅允许本站请求麦克风；camera 和 geolocation 仍禁用。麦克风需要 HTTPS 或本地安全上下文。
+- `sql/phase-11.11.4-fun-tools.sql` 只增加缺失目录记录；`sql/seed-dev.sql` 同步开发目录。两者可重复执行，不覆盖已存在或已禁用的记录。
+
+#### 4. 权限说明
+
+麦克风权限只会在声控弹力球页面点击“启动麦克风”后请求。页面显示未启动、等待授权、运行中以及拒绝授权时的提示。其余三个工具不请求设备权限。所有处理均在浏览器本地完成，不依赖第三方 API。
+
+#### 5. 修改文件列表
+
+| 范围 | 文件 |
+| --- | --- |
+| 页面 | `frontend/src/views/tools/fun/MikutapView.vue`、`OnlinePianoView.vue`、`RandomAvatarView.vue`、`VoiceBallView.vue` |
+| 本地逻辑 | `frontend/src/utils/tools/fun/mikutap.js`、`onlinePiano.js`、`randomAvatar.js`、`voiceBall.js` |
+| 路由及目录 | `frontend/src/router/index.js`、`frontend/src/utils/tools/registry.js`、`frontend/src/views/ToolsView.vue` |
+| SQL | `sql/phase-11.11.4-fun-tools.sql`、`sql/seed-dev.sql` |
+| 测试 | `frontend/src/__tests__/interactiveFunTools.spec.js`、`interactiveFunToolViews.spec.js`、`App.spec.js`、`frontend/e2e/interactive.browser.mjs`、`frontend/e2e/production.browser.mjs`、`backend/src/test/java/com/xiaoc/backend/mapper/ContentDevSeedTests.java` |
+| 配置及文档 | `deploy/nginx/win-tools.conf.example`、`docs/deployment/tencent-cloud.md`、`README.md`、`frontend/README.md`、本报告 |
+
+#### 6. 测试结果
+
+| 命令 | 结果 |
+| --- | --- |
+| `frontend> npm.cmd install` | 通过，未新增依赖，审计无漏洞。 |
+| `frontend> npm.cmd test` | 通过，18 个文件、439 项测试。 |
+| `frontend> npm.cmd run lint` | 通过，无 ESLint 错误或警告。 |
+| `frontend> npm.cmd run format:check` | 通过。 |
+| `frontend> node e2e/interactive.browser.mjs` | 通过，真实无头 Chrome 在生产构建和 Nginx 示例安全响应头下验证四个页面直达和刷新、本地音频、SVG 显示、麦克风启动及离开时释放音轨。测试使用浏览器的本地模拟麦克风。 |
+| `backend> .\mvnw.cmd test` | 通过，242 项测试，含新 SQL 的重复执行和保留已有数据验证。 |
+| `backend> .\mvnw.cmd verify` | 通过，242 项测试并生成 Jar。 |
+
+#### 7. 构建结果
+
+`frontend> npm.cmd run build` 通过，Vite 为四个新页面生成独立资源文件。后端 `verify` 构建通过。
+
+#### 8. 已知问题
+
+无已知功能问题。SQL 自动验证使用 H2 MySQL mode，尚未在真实 MySQL 手工导入；路由直达和刷新通过带有示例安全响应头的临时服务验证，尚未在实际 Nginx/HTTPS 环境验收。浏览器测试使用模拟麦克风，实际设备和授权弹窗仍需部署后检查。
+
+#### 9. 后续建议
+
+在目标 MySQL 数据库执行 `sql/phase-11.11.4-fun-tools.sql`，确认四张新工具卡片。部署到 HTTPS 后，在实际桌面和移动浏览器检查音量响应、权限拒绝提示、SVG 下载及页面离开时的设备释放。
+<!-- END PHASE_11.11.4_REPORT.md -->
+
+<a id="phase-11-12"></a>
+<!-- BEGIN PHASE_11.12_REPORT.md -->
+### Phase 11.12：工具生态体验优化报告
+
+#### 1. 阶段目标
+
+帮助用户更快找到、收藏和再次打开现有工具，并改进首页工具入口。沿用现有 `/api/tools` 目录数据，不修改后端 API、数据库或既有工具实现。
+
+#### 2. 新增功能
+
+- 首页和工具列表增加可复用搜索框，按名称、描述实时过滤，并支持分类筛选；首页分类导航可直接进入对应过滤列表。
+- 工具卡片增加收藏按钮，`/favorites` 页面展示当前公开目录中的收藏工具，可直接取消收藏。
+- 进入具体工具页会自动记录最近使用；通用详情仅在工具数据加载成功时记录。首页按最近访问顺序展示最多 10 个工具。
+- 首页增加组件化热门工具区域：JSON 格式化、图片压缩、二维码生成、随机昵称优先展示；优先项缺失时从当前目录补足。
+- 收藏和最近使用只保存工具 slug 到当前浏览器 `localStorage`，不发送到服务器。其他工具输入仍按原有逻辑处理。
+
+#### 3. 修改文件列表
+
+- 页面与路由：`frontend/src/views/HomeView.vue`、`ToolsView.vue`、`FavoritesView.vue`、`ToolDetailView.vue`、`frontend/src/router/index.js`、`frontend/src/layouts/MainLayout.vue`。
+- 公共组件与样式：`frontend/src/components/ToolCard.vue`、`ToolSearch.vue`、`FavoriteButton.vue`、`PopularTools.vue`、`frontend/src/assets/main.css`。
+- 逻辑与测试：`frontend/src/utils/toolDiscovery.js`、`toolPreferences.js`、`frontend/src/__tests__/toolDiscovery.spec.js`、`toolPreferences.spec.js`、`toolExperience.spec.js`、`App.spec.js`。
+- 文档：`README.md`、`frontend/README.md`、本报告。
+
+#### 4. 测试结果
+
+在 `frontend/` 执行：
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm.cmd test` | 21 个测试文件、450 个测试全部通过 |
+| `npm.cmd run lint` | 通过，0 个错误 / 警告 |
+| `npm.cmd run format:check` | 通过 |
+
+在 `backend/` 执行 `./mvnw.cmd test`（PowerShell 实际命令为 `.\mvnw.cmd test`）：242 个测试全部通过，Maven `BUILD SUCCESS`。后端未修改。
+
+#### 5. 构建结果
+
+在 `frontend/` 执行 `npm.cmd run build`：Vite 生产构建通过。
+
+#### 6. 已知问题
+
+无。收藏和最近使用仅在当前浏览器保存；清除站点数据或禁用浏览器存储后不会跨设备保留，这符合本阶段的本地实现范围。
+<!-- END PHASE_11.12_REPORT.md -->
+
+<a id="phase-11-13"></a>
+<!-- BEGIN PHASE_11.13_REPORT.md -->
+### Phase 11.13：管理员后台增强报告
+
+#### 1. 阶段目标
+
+增强现有后台的工具、分类、文章和 Dashboard 管理能力。沿用 Spring Security、服务端 Session、HttpOnly Cookie 和 CSRF；不修改管理员登录协议、公开资源接口或数据库表结构。
+
+#### 2. 新增后台功能
+
+- `/admin/tools` 显示工具名称、slug、分类、状态、排序值和创建时间；可按名称或 slug 搜索，并按分类、状态筛选。分类统计从完整管理列表读取，显示每个非空分类的名称与工具数量。
+- 工具行内状态操作先要求确认，再独立更新 `status`；行内排序输入校验 0～1000000 的整数并独立更新 `sort_order`。成功后重新读取管理列表。公开工具列表原本按 `sort_order ASC, id ASC` 查询，仅显示 `status=1`；更新后下一次前台请求即按新状态和顺序返回。
+- Dashboard 从受保护的统计接口显示工具总数、启用数、禁用数、文章总数、已发布数和非空工具分类数。后端统计工具只查询状态与分类，文章只执行计数查询，不读取文章正文。
+- `/admin/articles` 增加草稿和已发布状态筛选，显示标题、状态和时间信息。现有表没有发布时间字段，因此列表对草稿显示“未发布”，对已发布文章显示“未记录”；创建时间单独显示，避免把其他时间误当作发布时间。
+
+#### 3. API 变化
+
+| 方法与路径 | 请求 | 响应与行为 |
+| --- | --- | --- |
+| `GET /api/admin/dashboard/stats` | 无 | `ApiResponse` 包含 `toolTotal`、`toolEnabled`、`toolDisabled`、`articleTotal`、`articlePublished`、`categoryCount` |
+| `PUT /api/admin/tools/{id}/status` | `{"status":0或1}` | 返回更新后的 `AdminToolVO`；缺失资源 404，非法值 400 |
+| `PUT /api/admin/tools/{id}/sort` | `{"sortOrder":0到1000000的整数}` | 返回更新后的 `AdminToolVO`；缺失资源 404，非法值 400 |
+
+新接口都在原有 `/api/admin/**` 安全过滤链下，需要 `ROLE_ADMIN`。两个 PUT 请求必须携带有效 CSRF token；前端沿用每次写入前获取新 token 的既有流程。不更改登录、Session 或退出协议。
+
+#### 4. 数据库变化
+
+无。复用 `tool.status`、`tool.sort_order`、`tool.category` 和 `article.status`，没有新增表、字段或 SQL 迁移文件。
+
+#### 5. 修改文件列表
+
+- 后端：`AdminToolController.java`、`AdminToolService.java`、`AdminToolStatusRequest.java`、`AdminToolSortRequest.java`、`AdminDashboardController.java`、`AdminDashboardService.java`、`AdminDashboardStatsVO.java`。
+- 后端测试：`AdminEnhancementControllerTests.java`。
+- 前端：`AdminResourcePanel.vue`、`AdminToolsView.vue`、`AdminArticlesView.vue`、`AdminDashboardView.vue`、`adminTools.js`、`adminDashboard.js`。
+- 前端测试：`adminEnhancement.spec.js`、`adminContentApi.spec.js`、`adminViews.spec.js`。
+- 文档：`README.md`、本报告。
+
+#### 6. 测试结果
+
+| 目录 | 命令 | 结果 |
+| --- | --- | --- |
+| `frontend/` | `npm.cmd test` | 22 个测试文件、458 项测试通过 |
+| `frontend/` | `npm.cmd run lint` | 通过，0 个 ESLint 错误或警告 |
+| `frontend/` | `npm.cmd run format:check` | 通过 |
+| `frontend/` | `npm.cmd run build` | Vite 生产构建通过 |
+| `backend/` | `.\mvnw.cmd test` | 245 项测试通过 |
+| `backend/` | `.\mvnw.cmd verify` | 245 项测试通过，Jar 打包成功 |
+
+新增后端测试覆盖 Dashboard 实数统计、分类计数、工具状态与排序对公开接口的影响，以及认证、CSRF、参数校验和缺失资源。新增前端测试覆盖工具列表与筛选、分类统计、状态确认、排序更新、文章状态筛选和 Dashboard 展示。
+
+#### 7. 部署注意事项与已知限制
+
+- 无数据库迁移。部署时先更新后端，再发布前端构建产物，以免前端先请求尚未提供的新接口；沿用现有 Nginx `/api` 转发、HTTPS、Session Cookie 和 CSRF 配置。
+- 现有 `article` 表没有可靠的发布时间；若后续需要显示准确时间，需要单独设计和迁移字段。本阶段按要求未改表结构。
+- 自动测试使用 H2 MySQL 兼容模式；本阶段未使用真实 MySQL 凭据联调，也未部署到服务器。
+<!-- END PHASE_11.13_REPORT.md -->
+
+<a id="phase-11-14-1"></a>
+<!-- BEGIN PHASE_11.14.1_REPORT.md -->
+### Phase 11.14.1：GitHub Actions CI 报告
+
+#### 1. 阶段目标
+
+为前端和后端建立 GitHub Actions 自动检查，在每次 push 和 Pull Request 时运行代码检查、测试和构建。本阶段不修改业务代码、数据库、API 或部署方式，也不配置自动部署。
+
+#### 2. CI 架构说明
+
+两个独立 workflow 均运行在 `ubuntu-latest`，各自检出仓库并使用官方 setup action 缓存依赖。步骤顺序执行；任一步返回非零退出码，该 job 和 workflow 就会失败。前端以锁文件缓存 npm 下载，后端缓存 Maven 依赖；缓存不会替代安装、测试或构建。
+
+检查失败阻止合并还取决于目标分支的 required status checks 设置。目标分支应要求 `frontend` 和 `backend` 两个 job 成功；仅由 workflow 文件不能保证合并门禁生效。
+
+#### 3. 新增 Workflow
+
+| 文件 | 运行时 | 依赖缓存 | 检查内容 |
+| --- | --- | --- | --- |
+| `.github/workflows/frontend-ci.yml` | Ubuntu、Node.js 24.20.0 | `actions/setup-node` 的 npm 缓存，键使用 `frontend/package-lock.json` | 安装、Vitest、ESLint、Prettier、Vite 构建 |
+| `.github/workflows/backend-ci.yml` | Ubuntu、Temurin Java 18 | `actions/setup-java` 的 Maven 缓存 | Maven test、verify 与 Jar 构建 |
+
+Git 记录的 `backend/mvnw` 缺少 Unix 可执行位，因此后端 job 在调用 `./mvnw` 前执行 `chmod +x ./mvnw`；该操作只影响 CI 检出的副本。
+
+#### 4. 触发条件
+
+两个 workflow 都由 `push` 和 `pull_request` 触发，没有分支或路径过滤；推送到任意分支，以及创建或更新 Pull Request 都会运行。PR 同步推送可能产生两次运行。
+
+#### 5. 执行步骤
+
+前端：检出代码 → 设置 Node.js 与 npm 缓存 → `npm install` → `npm test` → `npm run lint` → `npm run format:check` → `npm run build`。
+
+后端：检出代码 → 设置 Java 18 与 Maven 缓存 → `chmod +x ./mvnw` → `./mvnw test` → `./mvnw verify`。后端测试使用 H2 测试配置，不连接生产 MySQL。
+
+#### 6. 本地验证结果
+
+2026-09-27 在 Windows 本地运行，全部成功：
+
+| 目录 | 命令 | 结果 |
+| --- | --- | --- |
+| `frontend/` | `npm.cmd install` | 成功；320 个依赖包完成审计，0 个漏洞 |
+| `frontend/` | `npm.cmd test` | 成功；22 个测试文件、458 个测试通过 |
+| `frontend/` | `npm.cmd run lint` | 成功；ESLint 零错误、零警告 |
+| `frontend/` | `npm.cmd run format:check` | 成功；Prettier 检查通过 |
+| `frontend/` | `npm.cmd run build` | 成功；Vite 生成 `dist/` |
+| `backend/` | `.\mvnw.cmd test` | 成功；245 个测试通过，0 个失败或错误 |
+| `backend/` | `.\mvnw.cmd verify` | 成功；245 个测试再次通过，生成可运行 Jar |
+| 仓库根目录 | `.\.cache\actionlint\actionlint.exe .github\workflows\frontend-ci.yml .github\workflows\backend-ci.yml` | 成功；actionlint 1.7.12 未报告问题 |
+
+`actionlint` 来自官方发布包，并按 GitHub Release 的 SHA-256 摘要校验；仅放在 Git 忽略的 `.cache/` 中，不加入项目依赖。
+
+#### 7. GitHub 验证结果
+
+`1ab451fbce2f55c434ed52f34f124115f029662d` 推送至 `feature/phase-11.14.1-cicd` 后，GitHub 自动触发两次 `push` workflow，均已完成且结论为 **success**：
+
+| Workflow | GitHub 运行 | 已通过的关键步骤 |
+| --- | --- | --- |
+| Frontend CI | [运行 #36317358097](https://github.com/TianXinBaby/win-tools-website/actions/runs/36317358097) | Node.js 与 npm 缓存设置、`npm install`、`npm test`、lint、格式检查、构建 |
+| Backend CI | [运行 #36317358098](https://github.com/TianXinBaby/win-tools-website/actions/runs/36317358098) | Java 18 与 Maven 缓存设置、Wrapper 可执行权限、`./mvnw test`、`./mvnw verify` |
+
+`pull_request` 触发条件通过 actionlint 校验；本阶段没有创建测试用 Pull Request，因此没有单独的 PR 运行记录。
+
+合并门禁当前无法启用：仓库为私有仓库，使用当前认证凭据查询 GitHub 的 `branches/main/protection` 与 `rulesets` API 均返回 HTTP 403，响应为 `Upgrade to GitHub Pro or make this repository public to enable this feature.` 因此本阶段创建的 workflow 能报告失败，但目前**不能保证失败时阻止合并**。依据 [GitHub 分支保护可用性说明](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)，已决定保持仓库私有；待 GitHub Pro 升级完成，再将 `frontend` 和 `backend` 设为 `main` 的必需检查。仓库可见性和付费计划未作改动。
+
+#### 8. 后续自动部署建议
+
+后续阶段若决定自动部署，应另行设计独立发布 workflow，在 CI 通过后才进入受保护的生产环境，并明确发布权限、凭据管理和回滚流程。本阶段没有服务器连接、部署凭据或发布步骤。
+<!-- END PHASE_11.14.1_REPORT.md -->
+
+<a id="phase-11-14-2"></a>
+<!-- BEGIN PHASE_11.14.2_REPORT.md -->
+### Phase 11.14.2：标准化部署流程报告
+
+#### 阶段目标
+
+为现有 Ubuntu、Nginx、Spring Boot systemd 与 Vue 静态文件部署建立可读的手工脚本，减少替换文件、备份与重启过程中的人工错误。本阶段没有修改业务代码、API、数据库结构或前端功能，也没有连接生产服务器。
+
+#### 部署架构
+
+服务器上保留完整项目检出，由部署用户构建前端与后端；切换线上文件及控制服务时使用 sudo。Nginx 继续从 `/var/www/win-tools` 提供静态文件并将 `/api` 转发到本机 Spring Boot；systemd 继续运行 `/opt/win-tools/backend/backend.jar`。`deploy/config.sh` 是服务器本地 Bash 配置，Git 忽略；生产数据库密码仍只放在既有 systemd EnvironmentFile 中。
+
+#### 新增脚本
+
+| 文件 | 用途 |
+| --- | --- |
+| `deploy/config.example.sh` | 路径、服务名、HTTPS 站点地址、健康检查及备份数量上限示例 |
+| `deploy/common.sh` | 可信配置读取、危险路径校验、确认、部署锁、备份容量、构建身份与健康重试 |
+| `deploy/frontend-deploy.sh` | npm 安装和构建、同文件系统暂存与目录切换、Nginx 校验及 reload |
+| `deploy/backend-deploy.sh` | Maven Wrapper 构建、Jar 暂存替换、systemd 停止和启动 |
+| `deploy/health-check.sh` | systemd active、HTTPS 首页 HTTP 200、本机 `/api/health` HTTP 200 和 UP |
+| `deploy/rollback.sh` | 显示并确认目标快照，保存当前现场，恢复 Jar 和静态目录，启动及健康检查 |
+| `deploy/tests/deployment-tests.sh` | 隔离目录中模拟构建、服务与 HTTP，检查部署、备份、失败现场、回滚和路径限制 |
+
+`backend/mvnw` 的 Git 可执行位已设置，确保 Ubuntu 检出后能直接执行 `./mvnw clean package`。脚本使用 `set -euo pipefail`；切换前需要输入精确确认文字，部署并发由备份目录中的锁阻止。
+
+#### 备份机制
+
+每次发布会在 `/opt/win-tools/backups/<时间戳>-<进程号>/` 保存配套 `backend.jar` 与 `frontend/`，以及元数据和完成标记。静态目录与备份目录要求在同一文件系统，避免跨文件系统移动造成长时间停站。默认最多允许 10 个快照；达到上限时停止新部署，不自动删除旧版本。回滚为保护现场允许创建额外快照，运维人员须检查磁盘并手工归档、清理旧版本。数据库备份单独按现有部署手册执行。
+
+#### 回滚流程
+
+默认选择最新完整快照，也可以显式指定快照名；展示目标后必须输入 `ROLLBACK <快照名>`。脚本先暂存目标文件并保存当前现场，再停止后端、恢复前端与 Jar、启动后端、校验并 reload Nginx，最后执行健康检查。若当前 Jar 或静态目录已经缺失，仍可指定完整快照恢复；可保存的现场文件会写入 `.partial` 快照。部署或回滚失败时保留快照和暂存文件，供人工诊断。
+
+#### 本地测试结果
+
+2026-09-27 在 Windows + Git Bash 中验证，均通过：
+
+| 命令 | 结果 |
+| --- | --- |
+| `bash -n deploy/*.sh deploy/tests/*.sh` | 所有脚本语法通过 |
+| `bash deploy/tests/deployment-tests.sh` | 隔离部署、确认拒绝、前端/后端备份、后端健康失败、默认及指定版本回滚、缺件回滚、容量上限及根路径拦截通过 |
+| `npm.cmd install` | 成功，依赖审计无漏洞 |
+| `npm.cmd test` | 22 个文件、458 项测试通过 |
+| `npm.cmd run lint` | 通过，无错误或警告 |
+| `npm.cmd run format:check` | 通过 |
+| `npm.cmd run build` | 通过，生成 `dist/` |
+| `.\mvnw.cmd test` | 245 项测试通过 |
+| `.\mvnw.cmd verify` | 245 项测试通过，生成可运行 Jar |
+
+#### 已知边界
+
+- Windows 上仅通过 Git Bash 做脚本语法与模拟行为测试；没有在真实 Ubuntu、Nginx、systemd、TLS、MySQL 环境执行发布。当前环境没有 shellcheck，需在 Ubuntu 上补做静态检查和现场验收。
+- `/api/health` 是进程存活检查，不证明数据库可用。上线后仍须检查公开数据 API、管理流程和浏览器资源加载。
+- 脚本不会清理旧快照、修改系统配置、备份或回滚数据库。达到备份上限后新部署会停止，需人工归档清理。
+- 前端目录切换由连续两次重命名完成，中间可能有短暂静态文件不可用窗口；应在维护窗口发布并用 HTTPS 检查确认恢复。
+<!-- END PHASE_11.14.2_REPORT.md -->
+
+<a id="phase-11-14-3"></a>
+<!-- BEGIN PHASE_11.14.3_REPORT.md -->
+### Phase 11.14.3：生产日志与监控报告
+
+#### 1. 阶段目标
+
+在现有 Ubuntu、systemd、Spring Boot 3.5.16、Nginx 和 Vue 静态部署上增加文件日志、健康检查与只读状态查看。保留业务 API、数据库结构、管理员认证和前端页面。本阶段未连接生产服务器，也未部署到服务器。
+
+#### 2. 日志架构
+
+`logback-spring.xml` 将同一事件输出到控制台（供 systemd journal 收集）和 `application.log`；ERROR 事件额外写入 `error.log`。每条日志包含时间、级别、线程、完整类名和消息。文件按日期及单文件 20 MB 滚动，压缩归档为 `application.YYYY-MM-DD.N.log.gz`、`error.YYYY-MM-DD.N.log.gz`；保留 14 天，应用归档总量上限 1 GB，错误归档上限 512 MB。日志文件和归档由 `logs/` 忽略规则排除在 Git 外。
+
+生产通过 `WIN_TOOLS_LOG_DIR=/opt/win-tools/logs` 指定目录。systemd 保留 journal，并以非 root 服务用户和 `UMask=0077` 运行；日志目录需预先由运维人员创建，权限 0700。开发或测试未设置该变量时写入后端工作目录的 `logs/`。
+
+Nginx 为 HTTP 跳转站点和 HTTPS 站点统一写入 `/var/log/nginx/win-tools-access.log` 与 `/var/log/nginx/win-tools-error.log`。访问日志使用最小格式，仅含时间、方法、状态、响应字节数、请求耗时和上游状态，不记录 IP、URI、查询串、请求头或正文；错误日志保持 `error` 级别。需由运维人员确认系统 logrotate 覆盖这两个 `.log` 文件，并限制读取权限。
+
+#### 3. 监控架构
+
+- `/api/health` 继续返回原有统一 JSON，作为不依赖数据库的进程存活检查。
+- 本机 `/actuator/health` 使用 Spring Boot 默认健康贡献者，包含可用时的数据源和磁盘空间检查；只返回整体状态。`/actuator/info` 当前返回空 JSON。
+- `deploy/health-check.sh` 依次检查后端 systemd 服务、HTTPS 首页、原有健康接口和 Actuator health。任何步骤失败都返回非零；部署与回滚沿用此检查。
+- `deploy/status-check.sh` 只读显示后端服务、配置中的回环端口（默认 8080）、Nginx 服务、项目磁盘空间和内存。它在状态异常时仍显示其余项目，最终返回非零。
+
+本阶段没有新增管理员 Dashboard 页面、监控业务接口或大型监控服务。
+
+#### 4. Actuator 配置
+
+新增 `spring-boot-starter-actuator`，沿用 Spring Boot 3.5.16 依赖管理。管理端点默认不可访问，整体最大权限限定为只读；仅 `health`、`info` 获得只读权限并通过 HTTP 暴露。JMX 暴露与 `/actuator` 发现页关闭；健康组件及详情始终隐藏。`metrics`、`env`、`logfile` 等端点在后端返回 404。
+
+生产后端继续只绑定 `127.0.0.1`。Nginx 对 `/actuator` 和 `/actuator/` 返回 404，不向公网代理管理端点；原 `/api` 转发和 HTTPS 配置不变。配置依据：[Spring Boot 3.5 Actuator 端点文档](https://docs.spring.io/spring-boot/3.5/reference/actuator/endpoints.html)、[日志文档](https://docs.spring.io/spring-boot/3.5/reference/features/logging.html)。
+
+#### 5. 安全说明
+
+生产配置示例只引用环境变量，不含真实密码、密钥或 Token。文件日志目录与 systemd EnvironmentFile 都须限制权限，且不能放在 Web root。访问日志不采集客户端地址或请求目标；Nginx 错误日志及底层库日志仍可能包含诊断内容，分享前须脱敏。现有 Session、CSRF、管理员权限和业务响应未更改。
+
+#### 6. 新增和主要修改文件
+
+| 文件 | 用途 |
+| --- | --- |
+| `backend/src/main/resources/logback-spring.xml` | 控制台、应用和错误文件日志及滚动策略 |
+| `backend/pom.xml`、`backend/src/main/resources/application.yml` | Actuator 依赖、最小端点暴露和日志目录配置 |
+| `deploy/application-prod-example.yml` | 无密钥的有效生产配置参考 |
+| `deploy/status-check.sh` | 只读服务、端口、磁盘与内存状态 |
+| `deploy/health-check.sh`、`deploy/tests/deployment-tests.sh` | Actuator 健康检查与失败路径模拟测试 |
+| `deploy/nginx/win-tools.conf.example`、`deploy/systemd/win-tools-backend.service.example`、`deploy/env/win-tools.env.example` | 安全访问日志、公网 Actuator 拦截和生产日志目录 |
+| `backend/src/test/java/com/xiaoc/backend/config/ProductionConfigurationTests.java`、`backend/src/test/java/com/xiaoc/backend/controller/ProductionHardeningTests.java` | 配置、端点暴露、日志写入与滚动策略测试 |
+| `.gitignore`、`README.md`、`deploy/README.md`、`docs/deployment/tencent-cloud.md` | 忽略日志及更新部署说明 |
+
+#### 7. 测试结果
+
+2026-09-27 在 Windows PowerShell 与 Git Bash 执行：
+
+Maven 命令在 `backend/` 目录执行，npm 命令在 `frontend/` 目录执行，Bash 命令在仓库根目录执行。
+
+| 命令 | 结果 |
+| --- | --- |
+| `.\mvnw.cmd test` | 248 项通过，0 失败 |
+| `.\mvnw.cmd verify` | 248 项通过，Jar 构建成功 |
+| `npm.cmd test` | 22 个文件、458 项通过 |
+| `npm.cmd run lint` | 通过，无 ESLint 错误或警告 |
+| `npm.cmd run build` | 通过，生成静态产物 |
+| `bash -n deploy/*.sh deploy/tests/*.sh` | 通过（Git Bash） |
+| `bash deploy/tests/deployment-tests.sh` | 通过：部署/回滚及新增 Actuator、状态异常路径 |
+| `git diff --check` | 通过 |
+
+测试实际启动了生产 profile 的后端容器，验证 `/actuator/health` 精确响应、`info` 空 JSON、敏感端点 404，并检查 Logback 将 INFO/ERROR 写到对应文件以及日期滚动策略和 14 天保留。`shellcheck`、`nginx` 与 `systemd-analyze` 在本地环境未安装，因此无法在此执行它们的静态或现场检查。
+
+#### 8. 部署注意事项
+
+1. 在服务器上先创建 `/opt/win-tools/logs`，owner 为 `win-tools`，模式为 0700；更新实际 EnvironmentFile 和 systemd 单元中的 `WIN_TOOLS_LOG_DIR`。核对日志目录不在 Web root 内。
+2. 在 Nginx `http {}` 中使用更新的示例；保留实际域名与 TLS 证书路径。先运行 `sudo nginx -t`，成功后再 reload。确认公网 `/actuator/health` 为 404，回环地址为 200，8080 不对公网开放。
+3. 从 Phase 11.14.2 升级时，先发布新版后端，再运行增强后的 `health-check.sh`。旧 Jar 没有 Actuator，增强检查在升级前必然失败；本阶段前端没有变更，无须重发。
+4. 运行 `sudo systemd-analyze verify /etc/systemd/system/win-tools-backend.service`、`sudo bash deploy/status-check.sh`、`sudo bash deploy/health-check.sh`，并核对 `application.log`、`error.log`、journal 和 Nginx 日志。确认 Ubuntu logrotate 实际覆盖 Nginx 的新日志文件。
+5. 如果回滚到 Phase 11.14.2 或更早 Jar，新版严格健康检查会因缺少 `/actuator/health` 返回非零。须人工核对 systemd、HTTPS 首页、原 `/api/health`、公开数据 API 与管理流程，区分旧版监控能力缺失和业务故障。
+
+真实 Ubuntu、Nginx、systemd、MySQL 与 TLS 的部署后验收仍需在授权服务器上执行。
+<!-- END PHASE_11.14.3_REPORT.md -->
+
+<a id="phase-11-14-4"></a>
+<!-- BEGIN PHASE_11.14.4_REPORT.md -->
+### Phase 11.14.4：生产备份与恢复报告
+
+#### 1. 阶段目标
+
+为现有 Ubuntu、Spring Boot 3.5.16、MySQL 8、Vue 静态文件、Nginx、systemd 部署增加可审计的生产备份、保留、校验和恢复流程。本阶段只增加 `backup/` 脚本、测试和文档，未修改业务代码、数据库结构或生产服务器 crontab，也未连接生产主机。
+
+#### 2. 备份架构
+
+默认将归档保存在 `/var/backups/win-tools/mysql/` 和 `/var/backups/win-tools/files/`，与 `/var/www/win-tools` Web root、Git 检出以及 `deploy/` 发布回滚快照分开。备份根目录和子目录模式为 0700，归档、摘要文件随 `umask 077` 创建。数据库备份、文件备份和恢复共用目录锁，防止彼此并发。每个归档附带 SHA-256 摘要；校验同时检查文件存在、可读、压缩内容完整及文件归档的预期目录结构。SHA-256 只用于发现损坏，不能证明归档来源，应另做加密异地备份。
+
+`BACKUP_KEEP` 默认 7，分别计算 SQL 和文件归档。新归档成功校验后才检查旧归档；删除前输出明确的 `RETENTION` 日志。旧归档校验失败时停止自动删除。部署脚本现有 `deploy/backups` 快照不参与此策略。
+
+#### 3. 数据库备份方案
+
+`mysql-backup.sh` 使用 `mysqldump` 导出指定 `DB_NAME` 的表结构与数据，并包含触发器、事件和存储过程。使用 `--single-transaction`、`--quick` 适配 InnoDB；非事务表仍需维护窗口控制写入。默认压缩成 `win_tools_YYYY-MM-DD-HHMMSS-PID.sql.gz`，可通过 `MYSQL_COMPRESS=0` 输出 `.sql`。脚本先写私有暂存文件，生成 SHA-256 并调用 `verify-backup.sh`，失败不留下被视为成功的半成品。MySQL 密码只从 0600 的服务器独立客户端配置文件或临时 `MYSQL_PWD` 环境变量读取，不写在模板或命令行参数中。
+
+#### 4. 文件备份方案
+
+`file-backup.sh` 保存当前 `backend.jar`、完整前端静态目录、完整 Nginx 配置目录、`win-tools-backend.service` 和应用配置目录（默认 `/etc/win-tools`），在归档内按 `backend/`、`frontend/`、`config/` 保持结构。输出 `win_tools_files_YYYY-MM-DD-HHMMSS-PID.tar.gz` 并校验。脚本检查内部链接；指向目录树外的链接会保留并输出警告，但其目标文件不包含在归档中。数据库文件、日志、外部 TLS 证书及私钥路径、其他系统服务配置不在此文件归档中。
+
+#### 5. 恢复流程
+
+`restore-mysql.sh` 要求指定 `.sql` 或 `.sql.gz`，先检查摘要和可读性，再测试目标数据库连接，显示源文件与目标库；必须依次输入 `RESTORE MYSQL` 和目标数据库名。SQL 导入可能覆盖表和数据；中途失败可能留下部分改动，因此生产使用需停写、预先创建恢复前备份并安排维护窗口。
+
+`restore-files.sh` 要求指定 `.tar.gz`，检查摘要、压缩包结构、目标路径和链接，再显示全部五个目标；必须依次输入 `RESTORE FILES` 和归档文件名。它先在目标文件系统暂存各目录/文件，再切换路径；旧版保留为同目录 `.before.时间-进程号`。切换中途失败时尝试把已切换目标还原；若自动还原也失败，保留 `.failed` 现场供人工处理。脚本不擅自停止、重启或 reload 生产服务。成功后运维人员检查 Nginx 与 systemd 配置，再重启/重载并进行健康及业务检查。目标必须已存在；新主机先按部署手册准备基础服务。
+
+隔离演练的备份创建、归档校验、模拟恢复、数据和文件抽查及 HTTP 健康检查步骤见 [备份恢复手册](backup/README.md)。真实生产恢复需要维护窗口。
+
+#### 6. 安全措施
+
+- `backup-config.example.sh` 不含密码；真实 `backup-config.sh`、`.sql`、`.sql.gz`、`.tar.gz` 等归档被 `.gitignore` 排除。测试只使用模拟 MySQL 命令与临时文件。
+- 推荐把脚本安装为 root 拥有、普通部署账号不可修改的副本，root 的定时任务不直接执行可写 Git 检出中的代码。MySQL 客户端配置单独放在 `/etc/win-tools` 并限制为 0600。
+- 文件归档可能含生产环境变量和 TLS 私钥，需要受限存储、异地加密副本及过期清理。恢复只应使用可信归档；摘要不提供认证。
+- 两种恢复均需要两次明确输入确认，备份保留删除逐项输出日志。脚本不修改生产 crontab。
+
+#### 7. 测试结果
+
+2026-09-28 在 Windows PowerShell、Git Bash 环境执行：
+
+| 命令 | 结果 |
+| --- | --- |
+| `bash -n backup/*.sh backup/tests/*.sh` | 通过 |
+| `bash backup/tests/backup-tests.sh` | 通过：压缩与非压缩 SQL、文件归档、保留日志、双重确认、校验失败、恢复切换失败回滚 |
+| `npm.cmd test`（`frontend/`） | 22 个文件、458 项通过 |
+| `npm.cmd run lint`（`frontend/`） | 通过，无 ESLint 错误 |
+| `npm.cmd run format:check`（`frontend/`） | 通过 |
+| `npm.cmd run build`（`frontend/`） | 通过，静态产物生成 |
+| `.\mvnw.cmd test`（`backend/`） | 248 项通过，0 失败 |
+| `.\mvnw.cmd verify`（`backend/`） | 248 项通过，Jar 构建成功 |
+| `git diff --check` | 通过 |
+
+本地没有 `shellcheck`，因此未执行该可选静态检查。隔离测试使用模拟 MySQL 客户端及项目工作区内的临时目录；真实 MySQL、Nginx、systemd、cron、权限和异地恢复需在授权 Ubuntu 环境进一步验收。
+
+#### 8. 生产部署建议
+
+1. 审核脚本与 [备份恢复手册](backup/README.md)，将脚本安装为 root 拥有的只读副本；复制示例为 root 专用配置，设置真实目录及单独的 MySQL 客户端凭据文件。准备 `/var/backups/win-tools`，限制访问并确认磁盘空间。
+2. 手动分别运行两种备份和 `verify-backup.sh`，确认生成的 SQL 与文件归档能在隔离主机恢复；记录行数、文件摘要及健康检查结果。
+3. 经运维审核后再在 root crontab 安排每日数据库、每周文件备份，配置失败告警、日志轮转、异地加密复制及定期恢复演练。本阶段没有改动生产计划任务。
+4. 生产恢复先协调维护窗口和应用停写，选择时间点兼容的数据库与文件归档，保留恢复前快照。恢复后执行 `nginx -t`、`systemd-analyze verify`、服务重启/重载、`deploy/health-check.sh` 和业务抽查，再由运维人员审核清理 `.before` 文件。
+<!-- END PHASE_11.14.4_REPORT.md -->
+
+<a id="phase-11-14-5"></a>
+<!-- BEGIN PHASE_11.14.5_REPORT.md -->
+### Phase 11.14.5：生产性能基线与轻量优化报告
+
+#### 1. 阶段目标与测量边界
+
+记录可重复的前端构建体积，审查路由、静态资源、Nginx、后端/JVM 和数据库查询，在不改业务语义、API、表结构或安全控制的前提下处理有依据的配置问题。2026-09-28 在 Windows 本地测量构建产物并运行测试；没有连接生产 Ubuntu、Nginx、MySQL，也没有真实请求延迟、GC、RSS 或 MySQL EXPLAIN 数据。因此下文不声明实际线上提速。
+
+#### 2. 优化前性能基线
+
+在未修改前执行 `frontend/` 下的 `npm.cmd run build`，Vite 8.3.0 构建成功，转换 1785 个模块。以 PowerShell `Get-ChildItem dist -Recurse -File` 按扩展名汇总未压缩文件字节：
+
+| 项目 | 文件数 | 大小 |
+| --- | ---: | ---: |
+| `dist/` 总体 | 73 | 497,871 B |
+| JavaScript | 55 | 422,958 B |
+| CSS | 16 | 73,814 B |
+| HTML | 1 | 899 B |
+| SVG | 1 | 200 B |
+
+最大 JS chunk 是 `index-BUjnhHck.js`，106,307 B（Vite 输出的 gzip 估算为 39.79 kB）；其后是 `adminRequest-ZVHvAS8E.js` 66,039 B、`runtime-core.esm-bundler-DQp1PQTM.js` 64,927 B、`request-CPnaysS_.js` 51,935 B。最大 CSS 为 `index-2qr94n9L.css` 50,543 B。主要延迟加载产物包括二维码页 26,982 B、共享图片面板 11,862 B、娱乐工具页约 1.6–4.6 kB、Admin 页面约 1.4–2.4 kB（另有共享 `adminRequest`）、文章详情页约 1.6 kB。文件大小不是首屏网络传输量；实际请求集合需在浏览器 Network 面板确认。
+
+`frontend/src/router/index.js` 中首页、Windows、工具、文章、Admin 布局及各 Admin 页面、全部娱乐和图片工具页均为动态 import。`frontend/src/main.js` 只注册五个基础 Element Plus 组件；后台专用组件和样式位于 Admin 路由代码中。项目内图像资源只有 200 B 的 favicon；`frontend/win-tools-frontend.zip` 为已有 164,772 B 仓库文件，不进入 `dist/`，未删除或修改。
+
+#### 3. 实施的优化与验证
+
+| 当前问题与依据 | 修改内容 | 预期收益 | 风险与控制 | 验证方法 |
+| --- | --- | --- | --- | --- |
+| Nginx 示例的 `/assets/` 仅 `try_files`，未设置缓存；本次 Vite 输出的 55 个 JS 和 16 个 CSS 均为内容哈希文件 | 在 `http {}` 使用 `$uri` 映射，仅给 `/assets/` 哈希 JS/CSS 设置 `public, max-age=31536000, immutable` | 重复访问可复用未变化的静态文件 | 未哈希文件放入 `/assets/` 会长期陈旧；映射只匹配当前哈希命名，发布前检查产物。服务器级 `add_header` 保留安全头继承 | 隔离配置断言；生产 `nginx -t`、请求实际哈希文件并核对 Cache-Control |
+| 原 `index.html` 通过 `expires -1` 禁止长期缓存，需要同时避免 SPA 深链接读到旧入口 | 在同一映射中为 `/`、`/index.html` 设置 `no-cache`；SPA fallback 保留 | 浏览器可重新验证入口文件，及时获得新哈希引用 | HTTP 缓存行为需在实际 Nginx 核对；深链接仍须人工刷新验收 | 请求 `/`、`/admin/windows` 并核对响应头和页面内容 |
+| Nginx 示例未启用 gzip，构建中有 106 kB 主 JS、50 kB 主 CSS 等可压缩文本 | 在 HTTPS server 启用 gzip、Vary、1024 B 门槛及 CSS/JS/JSON/SVG 类型；HTML 由 Nginx 默认处理 | 支持 gzip 的客户端可减少文本传输字节 | 压缩消耗少量 CPU；保留默认压缩级别并限制为文本类型 | 请求大 JS 时发送 `Accept-Encoding: gzip`，核对 `Content-Encoding`、页面功能和 CPU |
+| 原 systemd 示例无用户给出的生产堆边界 | 示例 ExecStart 显式采用 `-Xms256m -Xmx768m`，不增加最大堆 | 应用示例时维持已知堆上限，避免无意变为 JVM 自动估算 | 真实单元与进程参数可能不同；部署前后检查 `systemctl cat`、`ps`、整机内存和 journal | 本地示例断言；生产内存及服务检查 |
+| 缺少统一、低负载的验收采样入口 | 新增 `deploy/performance-check.sh`，顺序各请求一次首页、公开工具 API、回环健康 API 与 Actuator，并显示时间、服务、内存、磁盘 | 便于在相同环境重复记录状态和延迟，定位明显回归 | 单次样本有网络波动，不能代表 P95 或浏览器体验；脚本不使用并发、写入或管理员凭据 | 隔离 mock 测试验证四次请求、非 200 失败与无服务变更 |
+
+Nginx 缓存映射对其他 URI 返回空值，不给 `/api`、`/api/admin/*` 或 CSRF 响应新增缓存头；管理员/CSRF 响应已有的 `no-store` 不被隐藏。原 HTTPS 301、TLS、API proxy、SPA fallback、公网 `/actuator` 404、`microphone=(self)` 和其他安全头保留。真实 Nginx/TLS 环境尚未运行，必须按第 10 节验收。
+
+#### 4. 未实施的优化及原因
+
+- 路由已经按页面加载；没有为小页面重复拆包，也没有修改 Element Plus 的现有按需引用。
+- 没有删除仓库归档或用户提供的图片 URL；这些不在本次 `dist/` 中，且删除可能影响用户资料。
+- 没有加 Redis、CDN、额外依赖、Tomcat/Hikari 大规模参数或更大的 Xmx；缺少现场吞吐、内存和连接等待数据。
+- 没有改 API 列表字段、分页、管理员文章正文返回或数据库索引；这些都可能改变业务/API，且未取得真实行数及 EXPLAIN。
+
+#### 5. 前端构建体积变化
+
+修改后再次执行同一 `npm.cmd run build`，产物文件名与大小相同：`dist/` 497,871 B、JS 422,958 B、CSS 73,814 B，变化均为 **0 B**。本阶段的预期网络收益来自尚未部署的 Nginx gzip 和缓存策略，未测得真实传输或页面耗时改善。
+
+#### 6. Nginx 配置评估
+
+原配置已有 `/assets/` 缺失资源 404、`index.html` 不长期缓存、API 回环代理、Actuator 公网拒绝和完整安全头，故复用现有 location。新增映射放在 `http {}`，缓存头放在 server 级，避免 location 级 `add_header` 覆盖安全头。API 未启用 proxy cache；认证、Session 与 CSRF 行为不变。`nginx` 本地未安装，未执行 `nginx -t`；生产部署前必须运行。
+
+#### 7. 后端与 JVM 评估
+
+`application-prod.yml` 设定 SQL `NoLoggingImpl`、root 及相关组件 INFO，关闭详细请求日志和 Tomcat access log；没有 DEBUG SQL 输出。Actuator 仅 HTTP 暴露只读 health/info，细节隐藏，JMX 关闭；Nginx 拒绝公网访问。未修改 Java 配置、业务代码、线程池或连接池。给定主机约 2 GiB RAM + 2 GiB Swap，示例保持 Xms 256 MiB / Xmx 768 MiB。Xmx 只是 Java 堆上限，不是进程 RSS 上限；需在生产同时观察 MySQL、Nginx、系统可用内存、Swap 与 journal。当前无启动时间或内存前后对比数据。
+
+#### 8. 数据库查询评估
+
+| 路径 | 代码检查结果 | 后续测量条件 |
+| --- | --- | --- |
+| 公开 Windows、Tools | 列表各一次 `selectList`，详情各一次条件查询；按已有 `status`、`sort_order` 等字段排序，无逐行再查 | Windows 列表还按 `release_date` 排序；只有实际慢查询和 EXPLAIN 显示排序代价时才评估索引 |
+| 公开 Articles | 列表只投影摘要等列，不加载 LONGTEXT 正文；详情单次按 id/status 查询；按创建时间和 id 排序 | 现有 `(status, created_at, id)` 索引；需用真实数据 EXPLAIN 核实 |
+| Admin CRUD | 各列表一次查询，新增/修改按现有语义再读取详情；文章管理列表包含正文，可能随文章量增加变大 | 保持返回格式；先测记录数、响应体积和耗时，再单独设计分页/字段拆分 |
+| Dashboard | 工具查询仅取分类/状态两列供计数和去重；文章总数及已发布数用两次数据库 COUNT，不加载正文 | 工具量增长后测 Dashboard 延迟与行数，再考虑聚合查询 |
+
+`sql/init.sql` 已有 Windows `(status, sort_order, id)`、Tool `(status, sort_order, id)`、Article `(status, created_at, id)` 及 slug 唯一索引。未连接真实 MySQL，未执行 EXPLAIN，也未修改 schema 或提出无依据的生产迁移。
+
+#### 9. 测试结果
+
+| 命令（工作目录） | 结果 |
+| --- | --- |
+| `npm.cmd test`（`frontend/`） | 22 个文件、458 项通过 |
+| `npm.cmd run lint`（`frontend/`） | 通过，零 ESLint 错误或警告 |
+| `npm.cmd run format:check`（`frontend/`） | 通过 |
+| `npm.cmd run build`（`frontend/`） | 基线及修改后均通过，构建产物相同 |
+| `.\mvnw.cmd test`（`backend/`） | 248 项通过，0 失败、0 错误 |
+| `.\mvnw.cmd verify`（`backend/`） | 248 项通过，Jar 构建成功 |
+| `bash -n deploy/*.sh deploy/tests/*.sh`（Git Bash，仓库根目录） | 通过 |
+| `bash deploy/tests/deployment-tests.sh`（Git Bash，仓库根目录） | 通过，含性能脚本成功/失败及 Nginx/systemd 配置断言 |
+
+本机没有 `shellcheck` 或 `nginx` 命令，未运行 shellcheck 或真实 `nginx -t`。Maven 测试使用 H2；测试日志有既有测试场景触发的 WARN，不代表生产新增警告。`git diff --check` 已通过。
+
+#### 10. 生产环境验收步骤
+
+1. 在相同构建环境重新运行前端 build，记录 `du -sb frontend/dist` 与最大 chunk。确认 Nginx Web root 仅部署 `dist/`，`/assets/` 文件名含哈希。
+2. 按实际域名和证书调整配置，先 `sudo nginx -t`，成功后 `sudo systemctl reload nginx`；`sudo systemd-analyze verify /etc/systemd/system/win-tools-backend.service` 并检查实际 JVM 参数。不要直接覆盖生产现有配置。
+3. 在项目目录执行 `bash deploy/performance-check.sh`、`sudo bash deploy/health-check.sh`。分别记录时间、日期、版本、响应状态、`free -h`、`ps aux --sort=-%mem | head -n 15`、`df -h`、`sudo journalctl -u win-tools-backend -n 100 --no-pager` 和 `curl --fail http://127.0.0.1:8080/actuator/health`。异常时先排查，不做并发压测。
+4. 按 [部署说明](deploy/README.md) 检查 `Cache-Control`、`Content-Encoding`、管理员响应的 `no-store`、HTTPS 跳转、安全头与 `microphone=(self)`，确认公网 `/actuator/health` 为 404、SPA 深链接刷新与 `/api` 代理正常。
+5. 用浏览器人工检查首页、文章、媒体/娱乐工具、管理员登录与 CRUD，并记录 Network 加载情况；需要分析数据库慢查询时，先获取真实行数与 MySQL EXPLAIN，再决定是否单独立项。
+<!-- END PHASE_11.14.5_REPORT.md -->

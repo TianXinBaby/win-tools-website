@@ -2,6 +2,16 @@
 
 这些脚本用于现有的 Ubuntu + Nginx + systemd 部署。生产配置保持 `deploy/nginx/win-tools.conf.example` 和 `deploy/systemd/win-tools-backend.service.example` 的路径约定：静态目录 `/var/www/win-tools`、Jar `/opt/win-tools/backend/backend.jar`、服务 `win-tools-backend`。脚本不连接 SSH，不修改数据库、Nginx 配置或 systemd 单元。
 
+## Phase 11.15 发布验收入口
+
+获授权的运维人员先填写 [生产发布清单](../PRODUCTION_RELEASE_CHECKLIST.md) 和 [SQL 发布清单](../PRODUCTION_SQL_CHECKLIST.md)。本目录的 `production-smoke-test.sh` 是公网只读检查，不加载部署配置、不登录后台、不发送 Cookie、不修改业务数据或服务；它对站点顺序发送 11 个 HTTPS GET，检查首页、五个深层路由、`/api/health`、三个公开列表 API，以及公网 `/actuator/health` 返回 404。任一请求、TLS、状态、类型或响应内容不符即退出非零。
+
+```sh
+BASE_URL=https://xc64.com.cn bash deploy/production-smoke-test.sh
+```
+
+域名只是示例，使用时替换为实际 HTTPS 站点根地址，不要放账号、密码、路径或查询参数。脚本要求可信 TLS 证书，不使用 `-k`，也不跟随跳转；HTTP 到 HTTPS 的跳转、Session Cookie、CSRF、管理员流程、媒体和娱乐工具仍按发布清单人工检查。Phase 11.15 仅在本地用模拟 `curl` 验证脚本，尚未对生产站点执行。
+
 ## 前置条件与配置
 
 - 服务器上有完整的受信任项目检出，默认位于 `/opt/win-tools`。`frontend/`、`backend/` 和 Maven Wrapper 均须存在；构建用户须能写入源码目录。服务端需安装 Java 18、Node.js（满足 `frontend/package.json` 的 engines）、npm、Nginx、systemd、curl、GNU coreutils、`ss`（iproute2）及 `free`（procps）。Maven 由 Wrapper 下载，首次运行需要网络。
