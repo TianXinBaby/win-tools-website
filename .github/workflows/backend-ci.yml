@@ -25,6 +25,10 @@ jobs:
       - name: Make Maven Wrapper executable
         run: chmod +x ./mvnw
       - name: Run tests
+        env:
+          JDK_JAVA_OPTIONS: -XX:-UseContainerSupport
         run: ./mvnw test
       - name: Verify and build Jar
+        env:
+          JDK_JAVA_OPTIONS: -XX:-UseContainerSupport
         run: ./mvnw verify
