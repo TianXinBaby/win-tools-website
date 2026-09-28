@@ -15,6 +15,17 @@ dist/
 .env.*
 !.env.example
 deploy/config.sh
+backup/backup-config.sh
+backup/*.cnf
+backup/*.sql
+backup/*.tar.gz
+backup/*.gz
+backup/**/*.sql
+backup/**/*.sql.gz
+backup/**/*.tar.gz
+backup/**/*.gz
+backup/mysql/
+backup/files/
 *.env
 *.pem
 *.key
