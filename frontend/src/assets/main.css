@@ -638,6 +638,8 @@ dd {
   }
 }
 .site-footer {
+  margin-top: auto;
+  flex-shrink: 0;
   border-top: 1px solid var(--line);
   background: #fff;
   padding-block: 32px;
@@ -657,6 +659,39 @@ dd {
 .footer-inner p {
   margin: 0;
   flex: 1;
+}
+.footer-legal {
+  margin-top: 24px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.footer-copyright {
+  margin-bottom: 8px;
+}
+.footer-registrations {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 20px;
+}
+.footer-registrations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  white-space: nowrap;
+}
+.footer-registrations a:hover,
+.footer-registrations a:focus-visible {
+  color: var(--accent);
+}
+.beian-icon {
+  width: auto;
+  height: 20px;
+  flex-shrink: 0;
 }
 .sr-only {
   position: absolute;

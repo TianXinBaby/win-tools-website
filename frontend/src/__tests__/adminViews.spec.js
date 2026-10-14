@@ -63,6 +63,16 @@ async function fillAndSubmit() {
 }
 
 describe('后台页面及守卫', () => {
+  it.each(['/admin/login', '/admin'])('%s 真实页面与认证守卫保持统一备案页脚', async (path) => {
+    if (path === '/admin') getCurrentAdmin.mockResolvedValue(admin)
+    const router = await open(path)
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(wrapper.findAll('footer')).toHaveLength(1)
+    expect(wrapper.get('footer').text()).toContain('赣公网安备36082802000204号')
+    expect(wrapper.get('footer').text()).toContain('赣ICP备2026025057号-1')
+    expect(wrapper.find('.main-nav').exists()).toBe(false)
+  })
+
   it.each(['/admin/windows', '/admin/tools', '/admin/articles'])(
     '未认证访问 %s 由既有守卫跳登录',
     async (path) => {

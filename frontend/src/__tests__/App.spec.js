@@ -102,7 +102,9 @@ describe('页面及路由', () => {
     expect(router.currentRoute.value.name).toBe(name)
     expect(wrapper.get('h1').text()).toContain(title)
     expect(wrapper.findAll('.main-nav a')).toHaveLength(5)
-    expect(wrapper.find('footer').exists()).toBe(true)
+    expect(wrapper.findAll('footer')).toHaveLength(1)
+    expect(wrapper.get('footer').text()).toContain('赣公网安备36082802000204号')
+    expect(wrapper.get('footer').text()).toContain('赣ICP备2026025057号-1')
   })
 
   it.each([
@@ -212,7 +214,7 @@ describe('页面及路由', () => {
     getWindowsDetail.mockResolvedValue({ ...windows, officialDownloadUrl: 'javascript:alert(1)' })
     await open('/windows/1')
     await flushPromises()
-    expect(wrapper.find('a[target="_blank"]').exists()).toBe(false)
+    expect(wrapper.find('main a[target="_blank"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('暂未提供有效的 Microsoft 官方下载链接')
   })
 
