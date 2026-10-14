@@ -32,11 +32,4 @@ const isCurrent = (path) =>
     </div>
   </header>
   <main id="main-content" class="container main-content" tabindex="-1"><slot /></main>
-  <footer class="site-footer">
-    <div class="container footer-inner">
-      <span class="footer-brand">Win Tools</span>
-      <p>让系统资源更清晰，让日常操作更简单。</p>
-      <span>Windows 下载优先使用 Microsoft 官方渠道</span>
-    </div>
-  </footer>
 </template>
