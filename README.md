@@ -8,6 +8,12 @@ Windows、Tool、Article 列表和详情通过 Controller → Service → Mapper
 已开放 JSON 格式化、UUID v4、时间戳、SHA-256、Base64、二维码生成、三种图片处理工具，以及十二个娱乐工具，共二十一个浏览器本地工具。
 已开放管理员登录、后台 Dashboard 统计，以及 Windows / Tool / Article 的列表、新增、编辑和单条删除。
 
+## Phase 11.17：全站公安备案与 ICP 备案页脚
+
+`App.vue` 统一挂载 `SiteFooter.vue`，覆盖公开页面、所有工具、404、管理员登录和后台管理；公共布局与后台布局不再分别渲染页脚。保留原有白底视觉与说明文案，在版权下一行居中显示 [赣公网安备36082802000204号](https://beian.mps.gov.cn/#/query/webSearch?code=36082802000204) 和 [赣ICP备2026025057号-1](https://beian.miit.gov.cn/)。两个链接均在新标签页打开并设置 `noopener noreferrer`。
+
+公安图标来自根目录用户提供的 `备案图标.png`，原件保留，正式资源为 `frontend/public/images/gongan-beian.png`；生产构建后位于 `frontend/dist/images/gongan-beian.png`。发布前端时须包含该静态资源。桌面横排、窄屏整组换行，图标按原比例显示为 18×20px。本地测试、布局验收和阶段历史差异见 [Phase 11.17 报告](PHASE_11.17_REPORT.md)。本阶段尚未部署生产环境。
+
 ## Production Release / Operations
 
 Phase 11.15 提供 [生产发布清单](PRODUCTION_RELEASE_CHECKLIST.md)、[SQL 发布清单](PRODUCTION_SQL_CHECKLIST.md) 和只读的 [生产 Smoke Test](deploy/production-smoke-test.sh)。现场操作先阅读 [部署与回滚手册](deploy/README.md) 和 [备份恢复手册](backup/README.md)，按清单记录版本、CI、备份、健康、安全、浏览器人工验收及继续/回滚决定。执行结果和未完成的真实生产检查见 [Phase 11.15 报告](PHASE_11.15_REPORT.md)。本阶段没有连接生产服务器，也没有创建正式 Git tag。
