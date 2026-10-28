@@ -1,5 +1,35 @@
 # Ubuntu 手工部署脚本
 
+## Phase 11.18 视频转换后续启用
+
+以下步骤是审核通过后由操作人员执行的部署说明，本阶段未连接或修改生产。功能默认 `WIN_TOOLS_VIDEO_CONVERTER_ENABLED=false`，未安装 FFmpeg 不影响网站启动。完整配置及 API 见 [视频转换器说明](../docs/VIDEO_CONVERTER.md)。
+
+1. 先备份现有数据库、Jar、前端和配置，审阅 `sql/phase-11.18-video-converter.sql`，选择 `win_tools` 后手工执行。它只插入缺失的 `media` 工具记录，不覆盖同 slug 的已有数据。不要在生产运行开发种子。
+2. 安装 Ubuntu 提供的 FFmpeg（包括 FFprobe）：`sudo apt-get update`、`sudo apt-get install ffmpeg`。执行 `ffmpeg -version`、`ffprobe -version`；核对 `ffmpeg -encoders` 包含 libx264、aac、mpeg4、libmp3lame、libvpx-vp9、libopus。不要假定生产已有这些组件；不把二进制加入 Git/发布包。
+3. 用 `systemctl show win-tools-backend -p User -p Group` 检查实际运行用户和组。仓库示例为 `win-tools:win-tools`，现场可能不同。以实际账户执行 `sudo install -d -m 700 -o <实际User> -g <实际Group> /var/lib/win-tools/video-converter`。目录必须在静态站点根目录之外，后台账户独占，磁盘空间和 ACL 足够。systemd 示例已有 `UMask=0077` 和 `PrivateTmp=true`。
+4. 在既有 `/etc/win-tools/win-tools.env` 设置 `deploy/env/win-tools.env.example` 中全部视频变量，初始仍保持 false。按用户要求，单文件 500 MiB、请求 502 MiB、输出 500 MiB，与后端大小默认一致；页面 MB 沿用 1024 进制。2 CPU / 2 GiB RAM 与 MySQL 共机时，其余初始覆盖为视频时长及转换超时各 300 秒、1 执行 + 1 等待、10 分钟保留、最多 4 个任务。`application-prod-example.yml` 展示后端默认与变量绑定。不要修改系统级 Java/Node 配置。
+5. 合并 Nginx 示例的 `http {}` 共享区和精确路径 `/api/tools/video-converter/jobs`：全局最多 2 个上传请求、每 IP 1 个、每 IP 1 次/分钟且无突发队列，超限 429；`client_max_body_size 502m`，缓冲 16k，保持 `proxy_request_buffering on`。其他 API 仍 1m，查询/下载/取消接口不加此上传限流。保留既有 TLS、域名、缓存、安全头和 Actuator 阻断。`sudo nginx -t` 通过后才能 reload；仅提供仓库示例，本阶段没有执行此操作。提高文件大小须同步调整 `MAX_UPLOAD_BYTES`、`MAX_REQUEST_BYTES` 和 location 上限。
+6. 按现有批准流程部署前后端；设置启用开关 true 后重启后端，运行 `deploy/health-check.sh`，检查能力接口的 available。浏览器实际上传有效 ASF，至少完成 ASF → MP4 和下载，用 FFprobe 核对 H.264/AAC；同时核查五种输出、有/无音轨、损坏输入、取消、队列满载、另一会话无权限、过期删除及生产 500 MiB 文件/502 MiB 请求/500 MiB 输出边界。只有现场实测才能声称生产大文件上传/转码成功。
+7. 观察 `journalctl -u win-tools-backend`、CPU、内存、磁盘和任务清理，日志只有状态/固定错误代码。关闭功能时将开关改为 false 并重启后端；需要回滚则使用现有后端/前端快照流程。关闭或回滚后确认旧临时目录是否还有残留，按应用 marker 和过期时间核查后再清理，禁止删除未知文件。重启会丢失内存任务和 Session，用户需要重新上传。
+
+应用限流不能替代操作系统资源隔离；FFmpeg 与网站同账户运行，生产启用前应使用受维护的发行版构建并测量并发上传时的临时存储占用。本阶段不改变生产 systemd，也不声称已完成负载验收。
+
+### 2 CPU / 2 GiB RAM / 50 GiB 磁盘的启用检查
+
+上传会先进入 Nginx 请求体缓冲，再经 Servlet multipart 解析，最后才到 Service 的任务预留与复制。因此匿名客户端可反复创建 Session，单靠 1+1 任务队列无法限制上传缓冲；上述 Nginx 全局连接限制才覆盖这段入口。Tomcat 必须仅监听回环地址，云安全组/防火墙不得开放 8080，否则可绕过这些入口保护。每 IP 限制会影响共享 NAT 用户；若前面有 CDN，需先按可信代理范围配置真实 IP，不接受客户端任意 X-Forwarded-For。
+
+在启用前，以实际后端账户创建 `/var/lib/win-tools/video-multipart`，权限 0700，并通过环境变量 `SPRING_SERVLET_MULTIPART_LOCATION` 指向它。用 `findmnt -T <路径>`、`df -h <路径>` 核对任务目录、Servlet 目录、`nginx -T` 中的 `client_body_temp_path`/`proxy_temp_path` 都在受预算的磁盘上；不能把 `/tmp` 或 `PrivateTmp` 自动等同于磁盘，tmpfs 会消耗这台机器的内存。Nginx 临时区由其 worker 账户持有，不要改成与后端共用的任务目录，也不要设 `client_body_in_file_only on` 留存请求体。
+
+保守磁盘粗算为：4 个任务各暂按 500 MiB 输入 + 500 MiB 输出计 4000 MiB，2 个同时上传在 Nginx 与 Servlet 各按 502 MiB 计约 2008 MiB，总计约 6008 MiB（5.87 GiB）。此数只是预算，不是硬上限：容器开销、FFmpeg `-fs` 最后一包、失败清理重试、旧进程/旧版本遗留、Nginx 下载响应临时文件、日志、发布备份和 MySQL 都需另计。初始给视频相关磁盘至少留 8 GiB 余量；50 GiB 整机剩余少于 10 GiB 或低于 15% 时先关闭新上传并调查，较高者为告警线。这是运维建议，不是应用自动执行的磁盘配额。不要自动删除未知目录、数据库或备份来腾空间。
+
+保持 FFmpeg 并发 1，现有解码/滤镜/编码线程设置 1；线程参数不会限制每个原生库的所有线程，也不构成 CPU/内存硬配额。输入仍允许最多 3840×2160 像素，高压缩 500 MiB 文件也可能占用大量解码/参考帧内存。建议先用真实 4K/复杂编码 ASF 测得峰值 RSS、耗时、MySQL 延迟与 GC，再决定是否启用；当前没有此主机实测，不能承诺 2 GiB 不会 OOM。JVM 示例仍为 `-Xmx768m`，启用前可评估 `-Xmx512m` 作为起点，同时核对非堆和线程栈；MySQL buffer pool 可从 256 MiB 起评估。若 MySQL/OS/JVM 已吃掉可用空间，应继续保持转换关闭，不能靠 Swap 保证稳定。
+
+Spring 的 multipart 文件/请求大小与落盘阈值、应用的输入复制计数、输出 `-fs` + 结果大小检查、时长/超时、任务槽位和总保留容量都在服务器端执行。队列满返回 429，磁盘不足在上传/复制/编码阶段失败，不会成功返回下载任务；固定错误响应不暴露绝对路径。容量拒绝不能回收已经产生的 Nginx/Servlet 缓冲，后者由请求容器清理；应用只清理自己的标记目录。删除失败会重试，但持续权限错误/磁盘错误需运维介入，并保留任务标记，不应承诺损坏文件系统必定自动恢复。
+
+`client_body_timeout 30s` 是相邻读取的空闲超时，不是上传总时长限制；持续滴流仍可占用这 2 个受限上传请求，但不会因新建 Session 扩大并行缓冲数。该方案限制资源，并不保证匿名服务在分布式攻击中仍有可用名额。[Nginx 连接计数语义](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html) 还规定 HTTP/2/3 的每个并发请求单独计数；[请求限流](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html) 无 burst 时不排队突发请求。[请求体缓冲](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering) 开启会完整接收正文后再转发。
+
+应用关闭应先请求进程结束并等待，再清理任务文件。Java 的等待/强制终止 API 不能保证处于操作系统不可中断状态的进程立即消失，孤儿子进程的回收也取决于操作系统。既有 systemd `TimeoutStopSec=30` 与默认控制组终止是最终兜底；本次未修改 unit、未增加 OS 方案，也未在生产验证进程组退出。正式启用需现场检查 stop 后 cgroup/FFmpeg 是否为空。
+
 这些脚本用于现有的 Ubuntu + Nginx + systemd 部署。生产配置保持 `deploy/nginx/win-tools.conf.example` 和 `deploy/systemd/win-tools-backend.service.example` 的路径约定：静态目录 `/var/www/win-tools`、Jar `/opt/win-tools/backend/backend.jar`、服务 `win-tools-backend`。脚本不连接 SSH，不修改数据库、Nginx 配置或 systemd 单元。
 
 ## Phase 11.15 发布验收入口

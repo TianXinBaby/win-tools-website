@@ -181,6 +181,38 @@ grep -q 'Public tools API: HTTP 503' "$test_root/output" || fail 'Performance ch
 unset MOCK_PERF_API_STATUS
 
 nginx_config="$repo_dir/deploy/nginx/win-tools.conf.example"
+grep -Fq 'location = /api/tools/video-converter/jobs {' "$nginx_config" || fail 'Dedicated video upload location missing'
+grep -Fq 'client_max_body_size 502m;' "$nginx_config" || fail '500 MiB video multipart allowance missing'
+upload_location=$(awk '/location = \/api\/tools\/video-converter\/jobs \{/ { capture=1 } capture { print } capture && /^    }/ { exit }' "$nginx_config")
+[[ "$upload_location" == *'limit_conn video_upload_total 2;'* ]] || fail 'Global upload concurrency is not bounded before multipart buffering'
+[[ "$upload_location" == *'limit_conn video_upload_ip 1;'* ]] || fail 'Per-IP upload concurrency is missing'
+[[ "$upload_location" == *'limit_req zone=video_upload_rate;'* ]] || fail 'Upload creation rate is not limited'
+[[ "$upload_location" == *'limit_conn_status 429;'* && "$upload_location" == *'limit_req_status 429;'* ]] || fail 'Upload limits must return 429'
+[[ "$upload_location" == *'proxy_request_buffering on;'* && "$upload_location" == *'client_body_buffer_size 16k;'* ]] || fail 'Upload buffering must stay on disk with a bounded memory buffer'
+[[ "$upload_location" == *'client_body_timeout 30s;'* ]] || fail 'Idle upload timeout is missing'
+grep -Fq 'limit_conn_zone $server_name zone=video_upload_total:64k;' "$nginx_config" || fail 'Upload total shared zone is missing'
+grep -Fq 'limit_conn_zone $binary_remote_addr zone=video_upload_ip:1m;' "$nginx_config" || fail 'Upload IP shared zone is missing'
+grep -Fq 'limit_req_zone $binary_remote_addr zone=video_upload_rate:1m rate=1r/m;' "$nginx_config" || fail 'Upload rate shared zone is missing'
+[[ $(grep -cE '^        limit_(conn|req)( |_)' "$nginx_config") -eq 5 ]] || fail 'Upload limits leaked into other API locations'
+video_env="$repo_dir/deploy/env/win-tools.env.example"
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_ENABLED=false' "$video_env" || fail 'Video must remain opt-in'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_UPLOAD_BYTES=524288000' "$video_env" || fail '500 MiB file limit changed'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_REQUEST_BYTES=526385152' "$video_env" || fail 'Spring request limit does not match Nginx 502m'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_OUTPUT_BYTES=524288000' "$video_env" || fail '500 MiB output limit changed'
+for app_config in "$repo_dir/backend/src/main/resources/application.yml" "$repo_dir/deploy/application-prod-example.yml"; do
+  grep -Fq 'max-file-size: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_UPLOAD_BYTES:524288000}B' "$app_config" || fail 'Servlet file default differs from 500 MiB'
+  grep -Fq 'max-request-size: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_REQUEST_BYTES:526385152}B' "$app_config" || fail 'Servlet request default differs from 502 MiB'
+  grep -Fq 'max-upload-bytes: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_UPLOAD_BYTES:524288000}' "$app_config" || fail 'Service upload default differs from 500 MiB'
+  grep -Fq 'max-output-bytes: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_OUTPUT_BYTES:524288000}' "$app_config" || fail 'Service output default differs from 500 MiB'
+done
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_CONCURRENT_JOBS=1' "$video_env" || fail 'Small-host FFmpeg concurrency changed'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_QUEUE_CAPACITY=1' "$video_env" || fail 'Small-host queue capacity changed'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_JOB_TTL_MINUTES=10' "$video_env" || fail 'Small-host retention duration changed'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_RETAINED_JOBS=4' "$video_env" || fail 'Small-host retained task bound changed'
+grep -Fxq 'SPRING_SERVLET_MULTIPART_LOCATION=/var/lib/win-tools/video-multipart' "$video_env" || fail 'Servlet upload storage must be explicitly provisioned'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_MAX_DURATION_SECONDS=300' "$video_env" || fail 'Small-host media duration changed'
+grep -Fxq 'WIN_TOOLS_VIDEO_CONVERTER_TIMEOUT_SECONDS=300' "$video_env" || fail 'Small-host conversion timeout changed'
+grep -Fq 'client_max_body_size 1m;' "$nginx_config" || fail 'Default API limit changed'
 grep -Fq '/var/log/nginx/win-tools-access.log win_tools_ops' "$nginx_config" || fail 'Safe Nginx access log is missing'
 grep -Fq 'location ^~ /actuator/' "$nginx_config" || fail 'Public Actuator block is missing'
 grep -Fq 'gzip on;' "$nginx_config" || fail 'Nginx gzip is missing'

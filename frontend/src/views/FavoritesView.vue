@@ -21,7 +21,7 @@ const favoriteTools = computed(() => {
     <p>收藏仅保存在当前浏览器；从任意工具卡片点击星标，即可在这里快速找到。</p>
   </div>
   <ResourceState :loading="loading" :error="error" :empty="!data?.length" @retry="reload">
-    <div v-if="favoriteTools.length" class="card-grid">
+    <div v-if="favoriteTools.length" class="tool-grid">
       <ToolCard v-for="item in favoriteTools" :key="item.slug" :item="item" />
     </div>
     <div v-else class="state-panel">

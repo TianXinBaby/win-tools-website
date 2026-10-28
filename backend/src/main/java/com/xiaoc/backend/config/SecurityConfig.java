@@ -72,13 +72,14 @@ public class SecurityConfig {
         JsonSecurityHandler errors = new JsonSecurityHandler(objectMapper);
         return http
                 // Public, read-only APIs retain their existing MVC 404/405 behavior.
-                .securityMatcher("/api/admin/**")
+                .securityMatcher("/api/admin/**", "/api/tools/video-converter/**")
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.deny())
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/tools/video-converter/**").permitAll()
                         .anyRequest().hasRole("ADMIN"))
                 .securityContext(context -> context.securityContextRepository(contexts))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens))

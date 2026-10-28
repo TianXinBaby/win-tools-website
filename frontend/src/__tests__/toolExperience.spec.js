@@ -62,7 +62,7 @@ describe('Phase 11.12 页面体验', () => {
   it('首页搜索即时更新结果，热门组件按真实目录展示，分类可跳过滤列表', async () => {
     const router = await open('/')
     const popular = wrapper.get('[aria-labelledby="popular-tools-title"]')
-    expect(popular.findAll('.resource-card h3').map((item) => item.text())).toEqual([
+    expect(popular.findAll('.compact-tool-card h3').map((item) => item.text())).toEqual([
       'JSON 格式化',
       '图片压缩',
       '二维码生成',
@@ -75,23 +75,27 @@ describe('Phase 11.12 页面体验', () => {
 
     await wrapper.get('.hero-search input').setValue('二维码')
     const results = wrapper.get('[aria-labelledby="home-search-title"]')
-    expect(results.findAll('.resource-card h3').map((item) => item.text())).toEqual(['二维码生成'])
+    expect(results.findAll('.compact-tool-card h3').map((item) => item.text())).toEqual([
+      '二维码生成',
+    ])
     expect(results.get('a[href="/tools?q=%E4%BA%8C%E7%BB%B4%E7%A0%81"]').exists()).toBe(true)
     await wrapper.get('.category-nav a[href="/tools?category=media"]').trigger('click')
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('tools'))
     await flushPromises()
     expect(wrapper.get('select').element.value).toBe('media')
-    expect(wrapper.findAll('.resource-card')).toHaveLength(2)
+    expect(wrapper.findAll('.compact-tool-card')).toHaveLength(2)
   })
 
   it('工具目录搜索名称和描述，可组合分类且提示无结果', async () => {
     await open('/tools')
     await wrapper.get('input[type="search"]').setValue('数据')
-    expect(wrapper.findAll('.resource-card h3').map((item) => item.text())).toEqual(['JSON 格式化'])
+    expect(wrapper.findAll('.compact-tool-card h3').map((item) => item.text())).toEqual([
+      'JSON 格式化',
+    ])
     await wrapper.get('select').setValue('media')
     expect(wrapper.text()).toContain('没有找到符合条件的工具')
     await wrapper.get('input[type="search"]').setValue('图片')
-    expect(wrapper.findAll('.resource-card h3').map((item) => item.text())).toEqual([
+    expect(wrapper.findAll('.compact-tool-card h3').map((item) => item.text())).toEqual([
       '二维码生成',
       '图片压缩',
     ])
@@ -99,15 +103,19 @@ describe('Phase 11.12 页面体验', () => {
 
   it('工具卡片收藏后可在收藏页查看，并可取消收藏', async () => {
     const router = await open('/tools')
-    const jsonCard = wrapper.findAll('.resource-card').find((item) => item.text().includes('JSON'))
+    const jsonCard = wrapper
+      .findAll('.compact-tool-card')
+      .find((item) => item.text().includes('JSON'))
     await jsonCard.get('.favorite-button').trigger('click')
     expect(jsonCard.get('.favorite-button').attributes('aria-pressed')).toBe('true')
     await router.push('/favorites')
     await flushPromises()
     expect(wrapper.get('h1').text()).toBe('我的收藏')
-    expect(wrapper.findAll('.resource-card h3').map((item) => item.text())).toEqual(['JSON 格式化'])
+    expect(wrapper.findAll('.compact-tool-card h3').map((item) => item.text())).toEqual([
+      'JSON 格式化',
+    ])
     await wrapper.get('.favorite-button').trigger('click')
-    expect(wrapper.findAll('.resource-card')).toHaveLength(0)
+    expect(wrapper.findAll('.compact-tool-card')).toHaveLength(0)
     expect(wrapper.text()).toContain('还没有收藏的工具')
   })
 

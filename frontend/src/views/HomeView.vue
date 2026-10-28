@@ -89,7 +89,7 @@ const sections = [
         </div>
         <RouterLink :to="resultsRoute">前往工具页面 <span aria-hidden="true">→</span></RouterLink>
       </div>
-      <div v-if="filteredTools.length" class="card-grid">
+      <div v-if="filteredTools.length" class="tool-grid">
         <ToolCard v-for="item in filteredTools" :key="item.slug" :item="item" />
       </div>
       <p v-else class="state-panel">没有找到符合条件的工具，请调整关键词或分类。</p>
@@ -102,7 +102,7 @@ const sections = [
           <p>只记录当前浏览器访问过的工具，最多 10 个。</p>
         </div>
       </div>
-      <div v-if="recentTools.length" class="card-grid">
+      <div v-if="recentTools.length" class="tool-grid">
         <ToolCard v-for="item in recentTools" :key="item.slug" :item="item" />
       </div>
       <p v-else class="state-panel">打开一个工具后，它会出现在这里。</p>

@@ -198,6 +198,12 @@ export const routes = [
     meta: { title: '声控弹力球' },
   },
   {
+    path: '/tools/video-converter',
+    name: 'tool-video-converter',
+    component: () => import('../views/tools/VideoConverterView.vue'),
+    meta: { title: '视频格式转换器' },
+  },
+  {
     path: '/tools/:slug',
     name: 'tool-detail',
     component: () => import('../views/ToolDetailView.vue'),

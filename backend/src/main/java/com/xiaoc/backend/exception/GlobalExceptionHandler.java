@@ -16,6 +16,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+    @ExceptionHandler(VideoConversionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleVideo(VideoConversionException exception) {
+        log.info("Video request rejected [{}]", exception.getMessage());
+        return ResponseEntity.status(exception.status())
+                .body(ApiResponse.error(exception.status(), exception.getMessage()));
+    }
+
     @ExceptionHandler(ResourceConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflict(ResourceConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -33,6 +40,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(404, exception.getMessage()));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            org.springframework.web.multipart.MaxUploadSizeExceededException exception,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        log.info("Video upload rejected [VIDEO_TOO_LARGE]");
+        return ResponseEntity.status(413).body(ApiResponse.error(413, "VIDEO_TOO_LARGE"));
     }
 
     @Override

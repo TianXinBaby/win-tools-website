@@ -5,6 +5,7 @@ import { toggleFavorite, useToolPreferences } from '../utils/toolPreferences'
 const props = defineProps({
   slug: { type: String, required: true },
   name: { type: String, required: true },
+  compact: { type: Boolean, default: false },
 })
 const { favorites } = useToolPreferences()
 const selected = computed(() => favorites.value.includes(props.slug))
@@ -20,6 +21,6 @@ const selected = computed(() => favorites.value.includes(props.slug))
     @click="toggleFavorite(slug)"
   >
     <span aria-hidden="true">{{ selected ? '★' : '☆' }}</span>
-    {{ selected ? '已收藏' : '收藏' }}
+    <span :class="{ 'sr-only': compact }">{{ selected ? '已收藏' : '收藏' }}</span>
   </button>
 </template>

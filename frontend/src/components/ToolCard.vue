@@ -17,18 +17,21 @@ const destination = computed(() => {
 })
 </script>
 <template>
-  <article class="card resource-card">
-    <div class="tool-card-top">
-      <span class="resource-symbol tool-symbol">{{ item.icon || '{ }' }}</span>
-      <FavoriteButton :slug="item.slug" :name="item.name" />
-    </div>
-    <h3>{{ item.name }}</h3>
-    <ElTag class="category" type="info" effect="plain">{{ item.category || '通用工具' }}</ElTag>
-    <p class="tool-availability">{{ available ? '已开放 · 浏览器本地运行' : '即将开放' }}</p>
-    <p>{{ item.description || '暂无简介。' }}</p>
-    <RouterLink class="card-link" :to="destination"
-      >{{ available ? '使用工具' : '了解工具' }} <span aria-hidden="true">→</span
-      ><span class="sr-only">：{{ item.name }}</span></RouterLink
-    >
+  <article class="card compact-tool-card">
+    <RouterLink class="card-link tool-card-link" :to="destination" :aria-label="item.name">
+      <span class="resource-symbol tool-symbol" aria-hidden="true">{{ item.icon || '{ }' }}</span>
+      <div class="tool-card-copy">
+        <h3 :title="item.name">{{ item.name }}</h3>
+        <p :title="item.description">{{ item.description || '暂无简介。' }}</p>
+        <span class="sr-only tool-availability">{{
+          available
+            ? item.slug === 'video-converter'
+              ? '本站服务器处理 · 以服务状态为准'
+              : '已开放 · 浏览器本地运行'
+            : '即将开放'
+        }}</span>
+      </div>
+    </RouterLink>
+    <FavoriteButton :slug="item.slug" :name="item.name" compact />
   </article>
 </template>

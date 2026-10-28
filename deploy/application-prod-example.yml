@@ -2,6 +2,11 @@
 # backend/src/main/resources/application.yml and application-prod.yml.
 # Keep real credentials only in /etc/win-tools/win-tools.env.
 spring:
+  servlet:
+    multipart:
+      max-file-size: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_UPLOAD_BYTES:524288000}B
+      max-request-size: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_REQUEST_BYTES:526385152}B
+      file-size-threshold: 0
   application:
     name: backend
   datasource:
@@ -13,6 +18,21 @@ spring:
       mode: never
   mvc:
     log-request-details: false
+
+win-tools:
+  video-converter:
+    enabled: ${WIN_TOOLS_VIDEO_CONVERTER_ENABLED:false}
+    ffmpeg-path: ${WIN_TOOLS_FFMPEG_PATH:ffmpeg}
+    ffprobe-path: ${WIN_TOOLS_FFPROBE_PATH:ffprobe}
+    temp-dir: ${WIN_TOOLS_VIDEO_CONVERTER_TEMP_DIR:${java.io.tmpdir}/win-tools-video}
+    max-upload-bytes: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_UPLOAD_BYTES:524288000}
+    max-output-bytes: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_OUTPUT_BYTES:524288000}
+    max-duration-seconds: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_DURATION_SECONDS:1800}
+    timeout-seconds: ${WIN_TOOLS_VIDEO_CONVERTER_TIMEOUT_SECONDS:900}
+    max-concurrent-jobs: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_CONCURRENT_JOBS:1}
+    queue-capacity: ${WIN_TOOLS_VIDEO_CONVERTER_QUEUE_CAPACITY:2}
+    job-ttl-minutes: ${WIN_TOOLS_VIDEO_CONVERTER_JOB_TTL_MINUTES:30}
+    max-retained-jobs: ${WIN_TOOLS_VIDEO_CONVERTER_MAX_RETAINED_JOBS:12}
 
 server:
   address: 127.0.0.1

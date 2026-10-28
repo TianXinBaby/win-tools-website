@@ -1,10 +1,13 @@
 import axios from 'axios'
+import { videoMessages } from './videoMessages'
 import { adminSession, expireAdminSession } from './adminSession'
 
 const request = axios.create({ baseURL: '/api', timeout: 10000 })
 
 // Only known public API messages reach the UI; never forward raw server errors.
 const publicMessages = {
+  ...videoMessages,
+  'Payload Too Large': '文件超过上传限制，请使用较小文件。',
   'Tool slug already exists': '工具 slug 已存在，请使用其他 slug。',
   'Article slug already exists': '文章 slug 已存在，请使用其他 slug。',
   'Resource already exists': '资源已存在，请检查 slug 是否重复。',
@@ -31,9 +34,17 @@ function checkAdminSession(code, config) {
 }
 
 function responseError(code, message) {
-  const fallback = code === 404 ? '资源不存在或已下架。' : '加载失败，请稍后重试。'
+  const fallback =
+    code === 413
+      ? '文件超过上传限制，请使用较小文件。'
+      : code === 404
+        ? '资源不存在或已下架。'
+        : '加载失败，请稍后重试。'
   const error = new Error(
-    code >= 500 || !Object.hasOwn(publicMessages, message) ? fallback : publicMessages[message],
+    (code >= 500 && !Object.hasOwn(videoMessages, message)) ||
+      !Object.hasOwn(publicMessages, message)
+      ? fallback
+      : publicMessages[message],
   )
   error.status = code
   return error
