@@ -139,6 +139,12 @@ SELECT '声控弹力球', 'voice-ball', '根据声音大小控制球体运动。
        'fun', '/tools/voice-ball', 1, 210
 FROM tool WHERE slug = 'voice-ball' HAVING COUNT(*) = 0;
 
+-- Phase 11.18: server-side video converter; actual availability comes from capabilities API.
+INSERT INTO tool (name, slug, description, category, path, status, sort_order)
+SELECT '视频格式转换器', 'video-converter', '上传至本站服务器，转换 ASF 等视频为 MP4 等格式。',
+       'media', '/tools/video-converter', 1, 95
+FROM tool WHERE slug = 'video-converter' HAVING COUNT(*) = 0;
+
 INSERT INTO article (title, slug, summary, content, category, status)
 SELECT 'Windows 11 官方下载说明', 'windows-11-download-guide', '本地开发示例：查看官方入口。',
        '本示例用于演示文章查询。请从网站 Windows 资源详情中的 Microsoft 官方入口查看下载说明，具体版本和系统要求以官方页面为准。',

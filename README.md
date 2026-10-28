@@ -1,5 +1,7 @@
 # Win Tools
 
+Phase 11.18 本地开发：工具列表统一为 100px 横向整卡导航，新增本站服务器视频格式转换器（默认关闭）。新增目录数据使用 `sql/phase-11.18-video-converter.sql`，开发种子也已更新。使用、API、配置、隐私和测试说明见 [视频转换器文档](docs/VIDEO_CONVERTER.md)，本阶段结果见 [PHASE_11.18_REPORT.md](PHASE_11.18_REPORT.md)。本阶段不提交、推送或部署，生产可用性不能由本地结果推断。
+
 个人 Windows 资源与在线工具网站，采用前后端分离架构。
 
 当前已完成 **Phase 11.15 的本地发布候选检查**；真实服务器验收状态为 **Production Verification Pending**。业务功能保持 Phase 11.13 的实现，保留原有认证流程和公开资源 API。

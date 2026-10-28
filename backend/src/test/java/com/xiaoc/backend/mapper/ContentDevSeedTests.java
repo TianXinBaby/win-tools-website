@@ -35,18 +35,21 @@ class ContentDevSeedTests {
     void seedCanBeRepeatedAndProvidesPublicExamplesWithoutAdminAccounts() {
         seed();
         seed();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(21L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tool", Long.class)).isEqualTo(22L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM article", Long.class)).isEqualTo(3L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM admin_user", Long.class)).isZero();
         var tools = toolService.listPublicTools();
         assertThat(tools).extracting(ToolVO::slug).containsExactly("json", "uuid", "timestamp", "sha256", "base64",
-                "qrcode", "image-compress", "image-resize", "image-convert",
+                "qrcode", "image-compress", "image-resize", "image-convert", "video-converter",
                 "nickname-generator", "ascii-art", "lucky-wheel", "reaction-test",
                 "magic-keyboard", "crt-tv", "fps-test", "typing-test",
                 "mikutap", "online-piano", "random-avatar", "voice-ball");
         assertThat(tools).allSatisfy(tool -> {
             assertThat(tool.path()).isEqualTo("/tools/" + tool.slug());
-            if (tool.category().equals("media")) {
+            if (tool.slug().equals("video-converter")) {
+                assertThat(tool.category()).isEqualTo("media");
+                assertThat(tool.description()).contains("本站服务器");
+            } else if (tool.category().equals("media")) {
                 assertThat(tool.description()).contains("本地");
             } else if (tool.category().equals("developer")) {
                 assertThat(tool.description()).contains("当前阶段未实现工具功能");
@@ -148,6 +151,25 @@ class ContentDevSeedTests {
         var before = jdbc.queryForList("SELECT * FROM tool ORDER BY id");
         interactiveSeed();
         assertThat(jdbc.queryForList("SELECT * FROM tool ORDER BY id")).isEqualTo(before);
+    }
+
+    @Test
+    void videoCatalogIsRepeatableAndPreservesAllExistingMetadata() {
+        seed();
+        jdbc.update("UPDATE tool SET status=0, description='custom video', sort_order=400 WHERE slug='video-converter'");
+        var before = jdbc.queryForList("SELECT * FROM tool ORDER BY id");
+        var populator = new ResourceDatabasePopulator(new FileSystemResource("../sql/phase-11.18-video-converter.sql"));
+        populator.setSqlScriptEncoding("UTF-8");
+        populator.execute(dataSource);
+        populator.execute(dataSource);
+        assertThat(jdbc.queryForList("SELECT * FROM tool ORDER BY id")).isEqualTo(before);
+        jdbc.update("DELETE FROM tool WHERE slug='video-converter'");
+        populator.execute(dataSource);
+        populator.execute(dataSource);
+        var tool = toolService.getPublicTool("video-converter");
+        assertThat(tool.name()).isEqualTo("视频格式转换器");
+        assertThat(tool.category()).isEqualTo("media");
+        assertThat(tool.path()).isEqualTo("/tools/video-converter");
     }
 
     private void seed() {

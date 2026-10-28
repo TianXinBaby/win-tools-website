@@ -16,7 +16,7 @@ const popular = computed(() => selectPopularTools(props.tools))
       </div>
       <RouterLink to="/tools">查看全部 <span aria-hidden="true">→</span></RouterLink>
     </div>
-    <div class="card-grid popular-grid">
+    <div class="tool-grid">
       <ToolCard v-for="item in popular" :key="item.slug" :item="item" />
     </div>
   </section>

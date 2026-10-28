@@ -29,13 +29,13 @@ const filtered = computed(() => filterTools(data.value || [], query.value, categ
     <h1>在线工具</h1>
     <p>
       已开放 JSON、UUID
-      v4、时间戳、SHA-256、Base64、二维码、图片处理，以及昵称、ASCII艺术、转盘、反应速度、魔法键盘、老电视、FPS、打字速度、Mikutap、在线钢琴、随机头像和声控弹力球，均在浏览器本地运行。反应和打字测试的最佳成绩仅保存在当前浏览器。
+      v4、时间戳、SHA-256、Base64、二维码、图片处理，以及昵称、ASCII艺术、转盘、反应速度、魔法键盘、老电视、FPS、打字速度、Mikutap、在线钢琴、随机头像和声控弹力球，这些工具在浏览器本地运行。视频格式转换器需上传至本站服务器，是否可用以页面服务状态为准。反应和打字测试的最佳成绩仅保存在当前浏览器。
     </p>
   </div>
   <ToolSearch v-model:query="query" v-model:category="category" :categories="categories" />
   <ResourceState :loading="loading" :error="error" :empty="!data?.length" @retry="reload">
     <p class="tool-results-count" role="status">找到 {{ filtered.length }} 个工具</p>
-    <div v-if="filtered.length" class="card-grid">
+    <div v-if="filtered.length" class="tool-grid">
       <ToolCard v-for="item in filtered" :key="item.id" :item="item" />
     </div>
     <p v-else class="state-panel">没有找到符合条件的工具，请调整关键词或分类。</p>

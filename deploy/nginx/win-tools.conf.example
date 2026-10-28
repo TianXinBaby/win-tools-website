@@ -2,6 +2,11 @@
 # Do not add location-level add_header directives: they override inherited headers.
 # Operational access log excludes IP, URI, query, headers and request body.
 log_format win_tools_ops '$time_iso8601 method=$request_method status=$status bytes=$body_bytes_sent request_time=$request_time upstream_status=$upstream_status';
+# Bound request-body buffering before Spring parses multipart or checks task slots.
+# Shared across workers; apply only to the exact upload location below.
+limit_conn_zone $server_name zone=video_upload_total:64k;
+limit_conn_zone $binary_remote_addr zone=video_upload_ip:1m;
+limit_req_zone $binary_remote_addr zone=video_upload_rate:1m rate=1r/m;
 # Vite emits content-hashed JS/CSS into /assets/. Keep other responses uncached
 # unless the upstream sets its own Cache-Control (notably admin/CSRF responses).
 map $uri $win_tools_cache_control {
@@ -72,6 +77,22 @@ server {
     proxy_send_timeout 30s;
 
     location = /api {
+        proxy_pass http://127.0.0.1:8080;
+    }
+    # Only the multipart creation endpoint accepts video-sized request bodies.
+    # Requested limit: 500 MiB file + 2 MiB multipart allowance.
+    location = /api/tools/video-converter/jobs {
+        limit_conn video_upload_total 2;
+        limit_conn video_upload_ip 1;
+        limit_conn_status 429;
+        limit_req zone=video_upload_rate;
+        limit_req_status 429;
+        client_max_body_size 502m;
+        client_body_buffer_size 16k;
+        client_body_timeout 30s;
+        proxy_request_buffering on;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
         proxy_pass http://127.0.0.1:8080;
     }
     location ^~ /api/ {

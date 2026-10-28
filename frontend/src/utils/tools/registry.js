@@ -8,6 +8,7 @@ const availableTools = new Set([
   'image-compress',
   'image-resize',
   'image-convert',
+  'video-converter',
   'nickname-generator',
   'ascii-art',
   'lucky-wheel',

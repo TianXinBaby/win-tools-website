@@ -11,6 +11,15 @@ function respond(data) {
 }
 
 describe('统一请求', () => {
+  it('Nginx 的 HTML 413 响应也显示文件超限提示', async () => {
+    request.defaults.adapter = async () => {
+      throw { response: { status: 413, data: '<html>413 Request Entity Too Large</html>' } }
+    }
+    await expect(request.post('/tools/video-converter/jobs')).rejects.toMatchObject({
+      status: 413,
+      message: '文件超过上传限制，请使用较小文件。',
+    })
+  })
   it('使用 /api、10 秒超时，解包统一响应', async () => {
     respond({ code: 200, message: 'success', data: [{ id: 1 }] })
     await expect(request.get('/windows')).resolves.toEqual([{ id: 1 }])
